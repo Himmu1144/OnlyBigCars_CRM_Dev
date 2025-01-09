@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/layout';
 import axios from 'axios';
+<<<<<<< HEAD
 import { Edit, Copy, Search } from 'lucide-react';
 
 const HomePage = () => {
@@ -103,10 +104,21 @@ const HomePage = () => {
                 modifiedAt: 'Jun 06,2023,08:26 AM'
             }
         ]);
+=======
+
+const HomePage = () => {
+    const [data, setData] = useState('');
+
+    useEffect(() => {
+        axios.get('http://127.0.0.1:8000/')
+            .then(response => setData(response.data.message))
+            .catch(error => console.error('Error fetching home data:', error));
+>>>>>>> origin/main
     }, []);
 
     return (
         <Layout>
+<<<<<<< HEAD
             {/* <h1 className="text-2xl font-bold mb-6">{welcomeData || 'Welcome to the Home Page!'}</h1> */}
             
             {/* New Form Section */}
@@ -281,8 +293,15 @@ const HomePage = () => {
                     </table>
                 </div>
             </div>
+=======
+            <h1>OnlyBigCars {data || 'Welcome to the Home Page!'}</h1>
+>>>>>>> origin/main
         </Layout>
     );
 };
 
+<<<<<<< HEAD
 export default HomePage;
+=======
+export default HomePage;
+>>>>>>> origin/main
