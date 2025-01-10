@@ -4,11 +4,8 @@ import Header from './header';
 import Footer from './footer';
 
 const Layout = ({ children }) => {
-<<<<<<< HEAD
 
 
-=======
->>>>>>> origin/main
     return (
         <>
             <Header />
