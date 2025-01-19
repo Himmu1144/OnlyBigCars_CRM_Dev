@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import Layout from '../components/layout';
 import axios from 'axios';
 import { Edit, Copy, Search } from 'lucide-react';
+import { AuthContext } from '../context/AuthContext';
 
 const HomePage = () => {
+    const { token } = useContext(AuthContext);
+
     // Add new state
     const [welcomeData, setWelcomeData] = useState('');
     const [leads, setLeads] = useState([]);
@@ -27,7 +30,11 @@ const HomePage = () => {
 
     useEffect(() => {
         // Fetch welcome message
-        axios.get('http://127.0.0.1:8000/')
+        axios.get('http://127.0.0.1:8000/', {
+            headers: {
+                Authorization: `Token ${token}`
+            }
+        })
             .then(response => setWelcomeData(response.data.message))
             .catch(error => console.error('Error fetching home data:', error));
 
@@ -90,7 +97,7 @@ const HomePage = () => {
             },
             
         ]);
-    }, []);
+    }, [token]);
 
     return (
         <Layout>
