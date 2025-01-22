@@ -18,7 +18,7 @@ from .models import Customer, Lead, Profile, Order
 @permission_classes([IsAuthenticated])
 def home_view(request):
     # Get 3 most recent leads
-    recent_leads = Lead.objects.select_related('customer', 'profile', 'order').order_by('-created_at')[:3]
+    recent_leads = Lead.objects.select_related('customer', 'profile', 'order').order_by('-created_at')[:4]
     leads_data = lead_format(recent_leads)
 
     # Get all users
@@ -35,14 +35,28 @@ def home_view(request):
 
 @api_view(['GET'])
 def search_leads(request):
-    mobile_number = request.GET.get('mobile')
-    # Search leads by customer's mobile number
-    leads = Lead.objects.filter(customer__mobile_number__icontains=mobile_number)
-    # Return same format as home_view for consistency
-    leads_data = lead_format(leads)
+    query = request.GET.get('query', '').strip()
+    leads = []
 
+    # Check if query is string or number
+    if query.isalpha() or (len(query) > 0 and not query.isnumeric()):
+        if query.upper().startswith('L'):
+            # Search in Lead IDs
+            leads = Lead.objects.filter(lead_id__icontains=query)
+        else:
+            # Search in Customer names
+            leads = Lead.objects.filter(customer__customer_name__icontains=query)
+    else:
+        # Search in Order IDs first
+        leads = Lead.objects.filter(order__order_id__icontains=query)
+        
+        # If no results found, search in customer mobile numbers
+        if not leads.exists():
+            leads = Lead.objects.filter(customer__mobile_number__icontains=query)
+
+    leads_data = lead_format(leads)
     return Response({
-        "message": "Recent Leads",
+        "message": "Search Results",
         "leads": leads_data
     })
 
@@ -55,6 +69,7 @@ def edit_form_submit(request):
     with transaction.atomic():
         try:
             # Get current user's profile
+            print("Heres the edit page data",request.data)
             user_profile = Profile.objects.get(user=request.user)
             
             # Extract data
@@ -62,6 +77,7 @@ def edit_form_submit(request):
             location_data = request.data.get('location')
             workshop_data = request.data.get('workshop')
             arrival_data = request.data.get('arrivalStatus')
+            basic_data = request.data.get('basicInfo')
 
             # Create or get customer
             customer, created = Customer.objects.get_or_create(
@@ -78,6 +94,8 @@ def edit_form_submit(request):
             lead = Lead.objects.create(
                 profile=user_profile,  # Add the user's profile
                 customer=customer,
+                source=customer_data['source'],
+                lead_type=basic_data['carType'],
                 # Location info
                 address=location_data['address'],
                 city=location_data['city'],
@@ -129,6 +147,32 @@ def edit_form_submit(request):
 #         }, status=status.HTTP_400_BAD_REQUEST)
 
 
+# @api_view(['POST'])
+# @authentication_classes([TokenAuthentication])
+# @permission_classes([IsAuthenticated])
+# def filter_leads(request):
+#     filter_data = request.data
+#     print('This is the filter data', filter_data)
+#     query = Lead.objects.all()
+    
+#     if filter_data.get('user'):
+#         query = query.filter(profile__user__username=filter_data['user'])
+#     if filter_data.get('source'):
+#         query = query.filter(source=filter_data['source'])
+#     if filter_data.get('status'):
+#         query = query.filter(lead_status=filter_data['status'])
+#     if filter_data.get('location'):
+#         query = query.filter(city=filter_data['location'])
+#     if filter_data.get('language_barrier'):
+#         query = query.filter(customer__language_barrier=True)
+#     # ... add other filters
+    
+#     leads = query.order_by('-created_at')
+#     leads_data = lead_format(leads)
+#     print(leads_data,'this is the leads data for', filter_data['user'])
+    
+#     return Response({'leads': leads_data})
+
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
@@ -136,8 +180,11 @@ def filter_leads(request):
     filter_data = request.data
     query = Lead.objects.all()
     
+    # User filter
     if filter_data.get('user'):
         query = query.filter(profile__user__username=filter_data['user'])
+    
+    # Basic filters
     if filter_data.get('source'):
         query = query.filter(source=filter_data['source'])
     if filter_data.get('status'):
@@ -146,34 +193,48 @@ def filter_leads(request):
         query = query.filter(city=filter_data['location'])
     if filter_data.get('language_barrier'):
         query = query.filter(customer__language_barrier=True)
-    # ... add other filters
+    if filter_data.get('arrivalMode'):
+        query = query.filter(arrival_mode=filter_data['arrivalMode'])
+        
+    # Car type filter (luxury/normal)
+    if filter_data.get('luxuryNormal'):
+        query = query.filter(lead_type=filter_data['luxuryNormal'])
     
+    # Date range filter
+    # if filter_data.get('dateRange'):
+    #     if filter_data['dateRange'].get('startDate'):
+    #         query = query.filter(created_at__gte=filter_data['dateRange']['startDate'])
+    #     if filter_data['dateRange'].get('endDate'):
+    #         query = query.filter(created_at__lte=filter_data['dateRange']['endDate'])
+            
+    # Specific date filter
+    if filter_data.get('dateCreated'):
+        query = query.filter(created_at__date=filter_data['dateCreated'])
+    
+    # Order by latest first
     leads = query.order_by('-created_at')
     leads_data = lead_format(leads)
-    print(leads_data,'this is the leads data for', filter_data['user'])
     
     return Response({'leads': leads_data})
 
 
 def lead_format(leads):
     leads_data = [{
-    'id': lead.lead_id,
-    'type': lead.lead_type or 'General',
-    'location': lead.city,
-    'name': lead.customer.customer_name,
-    'vehicle': 'NA',  # You might want to add this to your model
-    'number': lead.customer.mobile_number,
-    'source': lead.source,
-    'orderId': lead.order.order_id if lead.order else 'NA',
-    'regNumber': 'NA',  # You might want to add this to your model
-    'status': lead.lead_status,
-    'cce': f"CCE: {lead.profile.user.username if lead.profile else 'NA'}",
-    'ca': f"CA: {lead.ca_name or 'NA'}",
-    'recallDate': lead.created_at.strftime("%b %d,%Y,%I:%M %p"),
-    'arrivalDate': lead.arrival_time.strftime("%b %d,%Y,%I:%M %p") if lead.arrival_time else 'NA',
-    'createdAt': lead.created_at.strftime("%b %d,%Y,%I:%M %p"),
-    'modifiedAt': lead.updated_at.strftime("%b %d,%Y,%I:%M %p")
-} for lead in leads]
-     
+        'id': lead.lead_id or 'NA',
+        'type': lead.lead_type or 'NA',
+        'location': lead.city or 'NA',
+        'name': lead.customer.customer_name if lead.customer else 'NA',
+        'vehicle': 'NA',
+        'number': lead.customer.mobile_number if lead.customer else 'NA',
+        'source': lead.source or 'NA',
+        'orderId': lead.order.order_id if lead.order else 'NA',
+        'regNumber': 'NA',
+        'status': lead.lead_status or 'NA',
+        'cce': lead.profile.user.username if (lead.profile and lead.profile.user) else 'NA',
+        'ca': lead.ca_name or 'NA',
+        'arrivalDate': lead.arrival_time.strftime("%b %d,%Y,%H:%M") if lead.arrival_time else 'NA',
+        'createdAt': lead.created_at.strftime("%b %d,%Y,%H:%M") if lead.created_at else 'NA',
+        'modifiedAt': lead.updated_at.strftime("%b %d,%Y,%H:%M") if lead.updated_at else 'NA'
+    } for lead in leads]
     return leads_data
 

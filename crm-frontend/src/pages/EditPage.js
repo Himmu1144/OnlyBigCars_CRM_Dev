@@ -19,6 +19,11 @@ const EditPage = () => {
   const [selectedService, setSelectedService] = useState('Car Service');
   
   const [formState, setFormState] = useState({
+    overview: {
+      tableData: [],
+      caComments: '',
+      total: 0,
+    },
     customerInfo: {
       mobileNumber: '',
       customerName: '',
@@ -37,11 +42,6 @@ const EditPage = () => {
     },
     cars: [],
     selectedServices: [],
-    overview: {
-      tableData: [],
-      caComments: '',
-      estimateRemarks: ''
-    },
     arrivalStatus: {
       leadStatus: '',
       arrivalMode: '',
@@ -53,9 +53,38 @@ const EditPage = () => {
       locality: '',
       ca: '',
       cce: '',
-      comments: ''
-    }
+      comments: '',
+      
+    },
+    basicInfo: {
+      carType : '',
+    },
   });
+
+  const calculateTotalAmount = (tableData) => {
+    return tableData.reduce((sum, row) => {
+      const rowTotal = parseFloat(row.total) || 0;
+      return sum + rowTotal;
+    }, 0);
+  };
+
+  // Modify the existing table row total change handler
+  const handleTotalChange = (index, value) => {
+    const newTableData = [...formState.overview.tableData];
+    newTableData[index].total = value;
+    
+    // Calculate new total amount
+    const newTotal = calculateTotalAmount(newTableData);
+    
+    setFormState(prev => ({
+      ...prev,
+      overview: {
+        ...prev.overview,
+        tableData: newTableData,
+        total: newTotal
+      }
+    }));
+  };
 
   const addServiceToTable = (service) => {
     const newTableRow = {
@@ -238,27 +267,22 @@ const EditPage = () => {
       },
       
     ],
-    'default': [
-      {
-        id: 1,
-        title: "Car Inspection/Diagnostics",
-        duration: "4 Hrs Taken",
-        frequency: "Every 1 Month (Recommended)",
-        price: "Determine"
-      },
-      // ... keep other default cards ...
-    ]
+    
   };  
 
   // Modify the overview table section in the return statement to include row deletion
   const handleDeleteRow = (index) => {
-    setFormState(prev => ({
-      ...prev,
-      overview: {
-        ...prev.overview,
-        tableData: prev.overview.tableData.filter((_, i) => i !== index)
-      }
-    }));
+    setFormState(prev => {
+      const newTableData = prev.overview.tableData.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        overview: {
+          ...prev.overview,
+          tableData: newTableData,
+          total: calculateTotalAmount(newTableData)
+        }
+      };
+    });
   };
 
   const handleServiceClick = (service) => {
@@ -313,6 +337,31 @@ const EditPage = () => {
       </div>
     </div>
   );
+
+  // Add this function after other state definitions
+  const handleAddEmptyRow = () => {
+    const emptyRow = {
+      type: '',
+      name: '',
+      comments: '',
+      workdone: '',
+      determined: false,
+      qt: 1,
+      total: 0
+    };
+  
+    setFormState(prev => {
+      const newTableData = [...prev.overview.tableData, emptyRow];
+      return {
+        ...prev,
+        overview: {
+          ...prev.overview,
+          tableData: newTableData,
+          total: calculateTotalAmount(newTableData)
+        }
+      };
+    });
+  };
 
   return (
     <Layout>
@@ -509,8 +558,14 @@ const EditPage = () => {
 
                   {/* Dropdown Menu - positioned absolutely */}
                   <div className="mt-2">
-                    <select className="p-2 border border-gray-200 rounded min-w-[120px]">
-                      <option value="luxury">Luxury/Normal</option>
+                    <select
+                      value={formState.basicInfo.carType} // Add this
+                      onChange={(e) => handleInputChange('basicInfo', 'carType', e.target.value)} // Add this
+                      className="p-2 border border-gray-200 rounded min-w-[120px]"
+                    >
+                      <option value="">Luxury/Normal</option>
+                      <option value="Luxury">Luxury</option>
+                      <option value="Normal">Normal</option>
                     </select>
                   </div>
 
@@ -547,10 +602,16 @@ const EditPage = () => {
                     className="w-full p-2 border border-gray-200 rounded bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200" style={{ color: "#9ca3af" }}
                   >
                     <option value="">Source</option>
-                    <option value="option1">Option 1</option>
-                    <option value="option2">Option 2</option>
-                    <option value="option3">Option 3</option>
-                    <option value="option4">Option 4</option>
+                    <option value="inbound">inbound</option>
+                    <option value="outbound">outbound</option>
+                    <option value="Website">Website</option>
+                    <option value="Google Ads">Google Ads</option>
+                    <option value="Whatsapp">Whatsapp</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="Facebook">Facebook</option>
+                    <option value="Reference">Reference</option>
+                    <option value="B2B">B2B</option>
+                    <option value="SMS">SMS</option>
                   </select>
                 </div>
               </div>
@@ -761,6 +822,14 @@ const EditPage = () => {
               <div className="w-full p-2 rounded-lg">
           <div className="text-gray-700 mb-2" style={{ padding: "15px", borderRadius: "5px", background: "#F2F2F2" }}>Overview</div>
           <div className="w-full mt-3">
+            {/* Add the button here, before the table */}
+            <button
+              type="button"
+              onClick={handleAddEmptyRow}
+              className="mb-3 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            >
+              Add New Row
+            </button>
             <table className="w-full">
               <thead>
                 <tr className="bg-red-500 text-white">
@@ -777,15 +846,13 @@ const EditPage = () => {
               <tbody>
                 {formState.overview.tableData.map((row, index) => (
                   <tr key={index} className="bg-gray-50">
-                    <td className="p-3">{row.type}</td>
-                    <td className="p-3">{row.name}</td>
-                    {/* <td className="p-3">
+                    <td className="p-3">
                       <input
                         type="text"
-                        value={row.comments}
+                        value={row.type}
                         onChange={(e) => {
                           const newTableData = [...formState.overview.tableData];
-                          newTableData[index].comments = e.target.value;
+                          newTableData[index].type = e.target.value;
                           setFormState(prev => ({
                             ...prev,
                             overview: {
@@ -796,8 +863,43 @@ const EditPage = () => {
                         }}
                         className="w-full p-1 border rounded"
                       />
-                    </td> */}
-                    <td className="p-3">{row.workdone}</td>
+                    </td>
+                    <td className="p-3">
+                      <input
+                        type="text"
+                        value={row.name}
+                        onChange={(e) => {
+                          const newTableData = [...formState.overview.tableData];
+                          newTableData[index].name = e.target.value;
+                          setFormState(prev => ({
+                            ...prev,
+                            overview: {
+                              ...prev.overview,
+                              tableData: newTableData
+                            }
+                          }));
+                        }}
+                        className="w-full p-1 border rounded"
+                      />
+                    </td>
+                    <td className="p-3">
+                      <input
+                        type="text"
+                        value={row.workdone}
+                        onChange={(e) => {
+                          const newTableData = [...formState.overview.tableData];
+                          newTableData[index].workdone = e.target.value;
+                          setFormState(prev => ({
+                            ...prev,
+                            overview: {
+                              ...prev.overview,
+                              tableData: newTableData
+                            }
+                          }));
+                        }}
+                        className="w-full p-1 border rounded"
+                      />
+                    </td>
                     <td className="p-3">
                       <input
                         type="checkbox"
@@ -835,23 +937,13 @@ const EditPage = () => {
                       />
                     </td> */}
                     <td className="p-3">
-                      <input
-                        type="number"
-                        value={row.total}
-                        onChange={(e) => {
-                          const newTableData = [...formState.overview.tableData];
-                          newTableData[index].total = e.target.value;
-                          setFormState(prev => ({
-                            ...prev,
-                            overview: {
-                              ...prev.overview,
-                              tableData: newTableData
-                            }
-                          }));
-                        }}
-                        className="w-16 text-center p-1 border rounded"
-                      />
-                    </td>
+      <input
+        type="number"
+        value={row.total}
+        onChange={(e) => handleTotalChange(index, e.target.value)}
+        className="w-16 text-center p-1 border rounded"
+      />
+    </td>
                     <td className="p-3">
                       <button
                         type="button"
@@ -865,6 +957,50 @@ const EditPage = () => {
                 ))}
               </tbody>
             </table>
+
+{/* Inside the overview section in EditPageCopy.js, after the table */}
+<div className="flex gap-4 mt-3">
+  <div className="flex-1">
+    <textarea
+      value={formState.overview.caComments}
+      onChange={(e) => handleInputChange('overview', 'caComments', e.target.value)}
+      placeholder="CA Comments *"
+      className="w-full p-3 border rounded h-20 resize-none"
+    />
+  </div>
+
+  <div className="w-70 space-y-4">
+    
+
+    <div className='flex flex-row gap-3' style={{ float: "right" }}>
+      <div className='flex flex-col justify-center' >
+        <Button 
+          variant="outline-dark" 
+          className="w-full" 
+          style={{ fontSize: "12px" }}
+          onClick={() => {/* handle send to customer */}}
+        >
+          Send to Customer
+        </Button>
+        <Button 
+          variant="outline-dark" 
+          className="w-full mt-3" 
+          style={{ fontSize: "12px" }}
+          onClick={() => {/* handle download */}}
+        >
+          Download Estimate
+        </Button>
+      </div>
+
+      <div className="bg-gray-50 p-4 rounded space-y-2">
+      <div className="flex justify-between">
+        <span>Amount:</span>
+        <span>{formState.overview.total}</span>
+      </div>
+    </div>
+    </div>
+  </div>
+</div>
           </div>
         </div>
 
@@ -879,20 +1015,34 @@ const EditPage = () => {
               {/* Location Form */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3 mt-4">
 
-                <select
-                  value={formState.arrivalStatus.leadStatus}
-                  onChange={(e) => handleInputChange('arrivalStatus', 'leadStatus', e.target.value)}
-                  className="p-2 border border-gray-300 rounded-md"
-                >
-                  <option>Lead Status</option>
-                </select>
-                <select
-                  value={formState.arrivalStatus.arrivalMode}
-                  onChange={(e) => handleInputChange('arrivalStatus', 'arrivalMode', e.target.value)}
-                  className="p-2 border border-gray-300 rounded-md"
-                >
-                  <option>Arrival Mode</option>
-                </select>
+              <select
+  value={formState.arrivalStatus.leadStatus}
+  onChange={(e) => handleInputChange('arrivalStatus', 'leadStatus', e.target.value)}
+  className="p-2 border border-gray-300 rounded-md"
+>
+  <option value="">Lead Status</option>
+  <option value="Assigned">Assigned</option>
+  <option value="Follow Up">Follow Up</option>
+  <option value="CTO">CTO</option>
+  <option value="RTO">RTO</option>
+  <option value="Converted">Converted</option>
+  <option value="At Workshop">At Workshop</option>
+  <option value="Completed">Completed</option>
+  <option value="Walkin">Walkin</option>
+  <option value="Pickup">Pickup</option>
+  <option value="Doorstep">Doorstep</option>
+</select>
+
+<select
+                    value={formState.arrivalStatus.arrivalMode}
+                    onChange={(e) => handleInputChange('arrivalStatus', 'arrivalMode', e.target.value)}
+                    className="p-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="">Arrival Mode</option>
+                    <option value="Walkin">Walkin</option>
+                    <option value="Pickup">Pickup</option>
+                    <option value="Doorstep">Doorstep</option>
+                  </select>
                 <select
                   value={formState.arrivalStatus.disposition}
                   onChange={(e) => handleInputChange('arrivalStatus', 'disposition', e.target.value)}

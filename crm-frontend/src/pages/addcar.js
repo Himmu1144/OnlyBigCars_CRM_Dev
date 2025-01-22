@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ChevronDown } from 'lucide-react';
+import { X, ChevronDown, Search } from 'lucide-react';
 
 const AddNewCar = ({ onClose, onSubmit }) => {
   const modalRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   // Add click outside handler
   useEffect(() => {
@@ -16,65 +17,474 @@ const AddNewCar = ({ onClose, onSubmit }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
+
   // Car data
   const carBrands = [
-    "Aston Martin", "Audi", "Bentley", "BMW", "BYD", "Chevrolet", "Citroen",
-    "Datsun", "Daewoo", "DC", "Ferrari", "Fiat", "Force", "Ford", "Hindustan Motors",
-    "Honda", "Hummer", "Hyundai", "Isuzu", "Jaguar", "Jayem", "Jeep", "Kia",
-    "Lamborghini", "Land Rover", "Lexus", "Mahindra", "Maruti Suzuki", "Maserati",
-    "Mercedes", "MG", "Mini", "Mitsubishi", "Nissan", "Opel", "Photon", "Porsche",
-    "Premier", "Renault", "Rolls Royce", "Skoda", "Ssangyong", "Tata", "Toyota",
-    "Volkswagen", "Volvo"
+    "Maruti Suzuki", "Hyundai", "Honda", "Tata", "Ford", "Volkswagen", "Mahindra",
+    "Renault", "Chevrolet", "Toyota", "Skoda", "Nissan", "Fiat", "Datsun", "BMW",
+    "Kia", "Audi", "Mercedes", "Jeep", "Mitsubishi", "MG", "Land Rover", "Volvo",
+    "Jaguar", "Ssangyong", "Isuzu", "Mini", "Force", "Opel", "Porsche", "Daewoo",
+    "Hindustan Motors", "Aston Martin", "Citroen", "Lexus", "Bentley", "DC",
+    "Ferrari", "Maserati", "Lamborghini", "Rolls Royce", "Photon", "Jayem",
+    "Premier", "Hummer", "BYD"
   ];
-  
+
   const carModelsByBrand = {
-    "Aston Martin": ["DB9", "Rapide", "Vantage", "Vanquish"],
-    "Audi": ["A3", "A4", "A5", "A6", "A7", "A8", "A8 L", "e-tron", "Q2", "Q3", "Q5", "Q7", "Q8", "R8", "RS3", "RS5", "S4", "TT"],
-    "Bentley": ["Continental", "Flying Spur", "Mulsanne"],
-    "BMW": ["1 Series", "2 Series", "3 Series", "3 Series GT", "5 Series", "5 Series GT", "6 Series", "6 Series GT", "7 Series", "i4", "iX", "M3", "M5", "X1", "X3", "X4", "X5", "X6", "X7", "Z4"],
-    "BYD": ["e6"],
-    "Chevrolet": ["Aveo", "Beat", "Captiva", "Cruze", "Enjoy", "Forester", "Optra", "Optra Magnum", "Optra SRV", "Sail", "Sail Hatchback", "Spark", "Tavera", "Trailblazer", "UVA"],
-    "Citroen": ["C3", "C5 Aircross"],
-    "Daewoo": ["Cielo", "Matiz", "Nexia"],
-    "Datsun": ["GO", "GO Plus", "Redi Go"],
-    "DC": ["Avanti"],
-    "Ferrari": ["458 Italia", "458 Speciale", "488", "California", "F12 Berlinetta", "FF"],
-    "Fiat": ["Abarth Punto", "Adventure", "Avventura", "Linea", "Linea Classic", "Palio D", "Palio NV", "Palio Stile", "Petra", "Punto", "Punto Evo", "Uno", "Urban Cross"],
-    "Force": ["Gurkha", "One", "Trax", "Traveller 3350"],
-    "Ford": ["Eco Sport", "Endeavour", "Escort", "Figo", "Figo Aspire", "Fiesta", "Fiesta Classic", "Freestyle", "Fusion", "Ikon", "Mondeo", "Mustang"],
-    "Hindustan Motors": ["Ambassador"],
-    "Honda": ["Accord", "Accord Hybrid", "Amaze", "Brio", "BRV", "City", "City IDTEC", "City IVTEC", "City ZX", "Civic", "CRV", "Elevate", "Jazz", "Mobilio", "WRV"],
-    "Hummer": ["H2", "H3"],
-    "Hyundai": ["Accent", "Accent Viva", "Alcazar", "Aura", "Creta", "Elite i20", "Elantra", "Eon", "Exter", "Getz", "Getz Prime", "Grand i10", "Grand i10 Nios", "i10", "i20", "i20 Active", "i20 N Line", "Kona", "SantaFE", "Santro", "Santro Xing", "Sonata", "Sonata Embera", "Sonata Transform", "Tucson", "Venue", "Venue N Line", "Verna", "Verna Fluidic", "Verna Transform", "Xcent"],
-    "Isuzu": ["Dmax V Cross", "MU-X", "MU7"],
-    "Jaguar": ["F Pace", "F Type", "I-Pace", "XE", "XF", "XJ", "XJ L", "XJR", "XK R"],
-    "Jayem": ["Neo"],
-    "Jeep": ["Jeep-compass", "Jeep-wrangler"],
-    "Kia": ["Carens", "Carnival", "EV6", "Seltos", "Sonet"],
-    "Lamborghini": ["Aventador", "Gallardo", "Huracan", "Urus"],
-    "Land Rover": ["Defender", "Discovery 4", "Discovery Sport", "Freelander 2", "Range Rover", "Range Rover Evoque", "Range Rover Sport", "Range Rover Velar", "Range Rover Vogue"],
-    "Lexus": ["ES", "LC", "LS", "LX", "NX", "RX"],
-    "Mahindra": ["Alturas G4", "Bolero", "Bolero Camper", "Bolero Neo", "Bolero Pickup", "E20 Plus", "Imperio", "KUV 100", "Logan", "Marazzo", "NuvoSport", "Quanto", "Reva", "Scorpio", "Scorpio Getaway", "Scorpio N", "Thar", "TUV 300", "TUV 300 Plus", "Verito", "Verito Vibe CS", "XUV 300", "XUV 500", "XUV 700", "Xylo"],
-    "Maruti Suzuki": ["800", "A-Star", "Alto", "Alto 800", "Alto K10", "Baleno", "Celerio", "Ciaz", "Eeco", "Esteem", "Estilo", "Fronx", "Grand Vitara", "Gypsy", "Ignis", "Invicto", "Jimny", "Kizashi", "New Grand Vitara", "Omni", "Ritz", "S-Cross", "S-Presso", "Swift", "Swift Dzire", "SX4", "Versa", "Vitara Brezza", "WagonR", "XL6", "Zen"],
-    "Maserati": ["Ghibli", "GranCabrio", "GranTurismo", "Quattroporte"],
-    "Mercedes": ["A-Class", "AMG GT", "B-Class", "C-Class", "CLA Class", "CLS Class", "E-Class", "EQC", "EQS", "G63 AMGr", "GL Class", "GLA Class", "GLC", "GLE Class", "GLE43 AMG", "GLS", "ML Class", "R Class", "S-Class", "SL 500 AMG", "SLK Class", "V-Class"],
-    "MG": ["Astor", "Gloster", "Hector", "Hector Plus", "ZS EV"],
-    "Mini": ["Clubman", "Cooper", "Cooper SE", "Countryman"],
-    "Mitsubishi": ["Cedia", "Lancer", "Montero", "Outlander", "Pajero", "Pajero Sport"],
-    "Nissan": ["Evalia", "GTR", "Kicks", "Magnite", "Micra", "Micra Active", "Sunny", "Teana", "Terrano", "X-Trail"],
-    "Opel": ["Astra", "Corsa"],
-    "Photon": ["VIW CS2"],
-    "Porsche": ["911", "Boxter", "Cayenne", "Cayman", "Macan", "Panamera", "Taycan", "Taycan Turismo"],
-    "Premier": ["Rio"],
-    "Renault": ["Captur", "Duster", "Fluence", "Kiger", "Koleos", "Kwid", "Lodgy", "Pulse", "Scala", "Triber"],
-    "Rolls Royce": ["Ghost", "Phantom", "Wraith"],
-    "Skoda": ["Fabia", "Fabia Scout", "Kodiaq", "Kushaq", "Laura", "Octavia", "Rapid", "Slavia", "Superb", "Yeti"],
-    "Ssangyong": ["Rexton"],
-    "Tata": ["Altroz", "Aria", "Bolt", "Harrier", "Hexa", "Indica", "Indica eV2", "Indica V2", "Indica Vista", "Indigo", "Indigo CS", "Indigo Marina", "Indigo XL", "Indigo eCS", "Manza", "Nano", "Nano Genx", "Nexon", "Punch", "Safari", "Safari Storme", "Sumo Gold", "Sumo Grande", "Sumo Grande MK II", "Sumo Spacio", "Sumo Victa", "Tiago", "Tiago NRG", "Tigor", "Venture", "Winger", "Xenon", "Zest"],
-    "Toyota": ["Alphard", "Camry", "Corolla", "Corolla Altis", "Etios", "Etios Cross", "Etios Liva", "Fortuner", "Glanza", "Hilux", "Innova", "Innova Crysta", "Innova Hycross", "Land Cruiser", "Land Cruiser Prado", "Qualis", "Sera", "Urban Cruiser", "Urban Cruiser Hyryder", "Vellfire", "Yaris"],
-    "Volkswagen": ["Ameo", "Beetle", "Cross Polo", "Jetta", "Passat", "Phaeton", "Polo", "T-Roc", "Taigun", "Tiguan", "Vento", "Virtus"],
-    "Volvo": ["S40", "S60", "S60 Cross Country", "S80", "S90", "V40", "V40 Cross Country", "V60", "V90", "XC 40", "XC60", "XC90"]
-};
+    "Maruti Suzuki": ["Swift", "WagonR", "Swift Dzire", "Baleno", "Alto", "Ritz", "Celerio", "Ciaz", "Alto K10", "Ertiga", "Alto 800", "Vitara Brezza", "Estilo", "SX4", "800", "Zen", "A-Star", "Ignis", "S-Cross", "Eeco", "Esteem", "Omni", "S-Presso", "Grand Vitara", "Gypsy", "Kizashi", "Versa", "XL6", "New Grand Vitara", "Invicto", "Jimny", "Fronx"],
+    "Hyundai": ["i10", "i20", "Grand i10", "Santro Xing", "Eon", "Xcent", "Elite i20", "Creta", "Alcazar", "Verna Fluidic", "Verna", "Accent", "Santro", "i20 Active", "Elantra", "Getz", "Venue", "Grand i10 Nios", "Verna Transform", "Getz Prime", "Kona", "Accent Viva", "SantaFE", "Tucson", "Sonata", "Sonata Embera", "Aura", "Sonata Transform", "Venue N Line", "i20 N Line", "Exter"],
+    "Honda": [
+        "City IVTEC",
+        "Amaze",
+        "City",
+        "Brio",
+        "Jazz",
+        "Civic",
+        "Accord",
+        "City ZX",
+        "WRV",
+        "Mobilio",
+        "City IDTEC",
+        "CRV",
+        "BRV",
+        "Accord Hybrid",
+        "Elevate"
+      ],
+      "Tata": [
+        "Tiago",
+        "Tiago NRG",
+        "Nano",
+        "Zest",
+        "Nexon",
+        "Indica Vista",
+        "Tigor",
+        "Manza",
+        "Indica",
+        "Indigo",
+        "Safari",
+        "Indigo eCS",
+        "Indica V2",
+        "Bolt",
+        "Indigo CS",
+        "Safari Storme",
+        "Nano Genx",
+        "Indica eV2",
+        "Altroz",
+        "Aria",
+        "Harrier",
+        "Hexa",
+        "Sumo Grande",
+        "Indigo Marina",
+        "Sumo Gold",
+        "Sumo Grande MK II",
+        "Venture",
+        "Indigo XL",
+        "Sumo Spacio",
+        "Winger",
+        "Xenon",
+        "Sumo Victa",
+        "Punch"
+      ],
+    "Ford": [
+        "Figo",
+        "Eco Sport",
+        "Figo Aspire",
+        "Fiesta",
+        "Fiesta Classic",
+        "Ikon",
+        "Endeavour",
+        "Freestyle",
+        "Fusion",
+        "Escort",
+        "Mondeo",
+        "Mustang"
+      ],
+    "Volkswagen": [
+        "Polo",
+        "Vento",
+        "Ameo",
+        "Cross Polo",
+        "Jetta",
+        "Passat",
+        "Taigun",
+        "T-Roc",
+        "Beetle",
+        "Tiguan",
+        "Virtus",
+        "Phaeton"
+      ],
+    "Mahindra": [
+        "XUV 500",
+        "Scorpio",
+        "KUV 100",
+        "Xylo",
+        "TUV 300",
+        "Bolero Neo",
+        "Quanto",
+        "Bolero",
+        "Imperio ",
+        "Logan",
+        "Verito",
+        "XUV 300",
+        "Thar",
+        "Bolero Camper",
+        "NuvoSport",
+        "Marazzo",
+        "XUV 700",
+        "Verito Vibe CS",
+        "Bolero Pickup",
+        "Scorpio Getaway",
+        "Alturas G4",
+        "E20 Plus",
+        "TUV 300 Plus",
+        "Scorpio N",
+        "Reva"
+      ],
+    "Renault": [
+        "Kwid",
+        "Duster",
+        "Scala",
+        "Pulse",
+        "Fluence",
+        "Triber",
+        "Lodgy",
+        "Captur",
+        "Koleos",
+        "Kiger"
+      ],
+    "Chevrolet": [
+        "Beat",
+        "Spark",
+        "Cruze",
+        "Aveo",
+        "Sail",
+        "Enjoy",
+        "UVA",
+        "Optra",
+        "Sail Hatchback",
+        "Optra Magnum",
+        "Tavera",
+        "Optra SRV",
+        "Captiva",
+        "Forester",
+        "Trailblazer"
+      ],
+    "Toyota": [
+        "Sera",
+        "Etios",
+        "Innova",
+        "Corolla Altis",
+        "Etios Liva",
+        "Fortuner",
+        "Hilux",
+        "Innova Crysta",
+        "Corolla",
+        "Qualis",
+        "Etios Cross",
+        "Yaris",
+        "Camry",
+        "Glanza",
+        "Land Cruiser",
+        "Land Cruiser Prado",
+        "Urban Cruiser",
+        "Alphard",
+        "Vellfire",
+        "Urban Cruiser Hyryder",
+        "Innova Hycross"
+      ],
+    "Skoda": [
+        "Rapid",
+        "Fabia",
+        "Superb",
+        "Laura",
+        "Octavia",
+        "Yeti",
+        "Fabia Scout",
+        "Kodiaq",
+        "Kushaq",
+        "Slavia"
+      ],
+    "Nissan": [
+        "Micra",
+        "Sunny",
+        "Terrano",
+        "Micra Active",
+        "Teana",
+        "Kicks",
+        "Evalia",
+        "X-Trail",
+        "GTR",
+        "Magnite"
+      ],
+    "Fiat": [
+        "Punto",
+        "Linea",
+        "Punto Evo",
+        "Palio D",
+        "Avventura",
+        "Palio Stile",
+        "Linea Classic",
+        "Adventure",
+        "Palio NV",
+        "Abarth Punto",
+        "Urban Cross",
+        "Uno",
+        "Petra"
+      ],
+    "Datsun": [
+        "Redi Go",
+        "GO",
+        "GO Plus"
+      ],
+    "BMW": [
+        "X1",
+        "3 Series",
+        "2 Series",
+        "5 Series",
+        "3 Series GT",
+        "X3",
+        "7 Series",
+        "1 Series",
+        "Z4",
+        "5 Series GT",
+        "X5",
+        "X6",
+        "6 Series",
+        "M5",
+        "M3",
+        "X4",
+        "6 Series GT",
+        "X7",
+        "i4",
+        "iX"
+      ],
+    "Kia": [
+        "Carnival",
+        "Seltos",
+        "Carens",
+        "Sonet",
+        "EV6"
+      ],
+    "Audi": [
+        "A4",
+        "A6",
+        "Q3",
+        "Q2",
+        "Q7",
+        "A3",
+        "Q5",
+        "A8 L",
+        "S4",
+        "A5",
+        "A7",
+        "A8",
+        "TT",
+        "R8",
+        "RS5",
+        "RS3",
+        "Q8",
+        "e-tron"
+      ],
+    "Mercedes": [
+        "C-Class",
+        "E-Class",
+        "GLC",
+        "CLA Class",
+        "A-Class",
+        "S-Class",
+        "V-Class",
+        "ML Class",
+        "B-Class",
+        "GLA Class",
+        "GLE Class",
+        "SL 500 AMG",
+        "AMG GT",
+        "G63 AMGr",
+        "GL Class",
+        "SLK Class",
+        "CLS Class",
+        "GLS",
+        "R Class",
+        "GLE43 AMG",
+        "EQC",
+        "EQS"
+      ],
+    "Jeep": [
+        "Jeep-compass",
+        "Jeep-wrangler"
+    ],
+    "Mitsubishi": [
+        "Pajero Sport",
+        "Outlander",
+        "Pajero",
+        "Lancer",
+        "Cedia",
+        "Montero"
+      ],
+    "MG": [
+        "Gloster",
+        "ZS EV",
+        "Hector",
+        "Astor",
+        "Hector Plus"
+      ],
+    "Land Rover": [
+        "Discovery Sport",
+        "Range Rover Evoque",
+        "Freelander 2",
+        "Range Rover Sport",
+        "Discovery 4",
+        "Defender",
+        "Range Rover",
+        "Range Rover Vogue",
+        "Range Rover Velar"
+      ],
+    "Volvo": [
+        "S60",
+        "V40",
+        "S80",
+        "XC60",
+        "XC90",
+        "S60 Cross Country",
+        "V40 Cross Country",
+        "S40",
+        "XC 40",
+        "V60",
+        "V90",
+        "S90"
+      ],
+    "Jaguar": [
+        "XF",
+        "XE",
+        "XJ",
+        "F Type",
+        "F Pace",
+        "XJR",
+        "XK R",
+        "I-Pace",
+        "XJ L"
+      ],
+    "Ssangyong": [
+        "Rexton"
+    ],
+    "Isuzu": [
+        "MU7",
+        "Dmax V Cross",
+        "MU-X"
+      ],
+    "Mini": [
+        "Cooper",
+        "Countryman",
+        "Clubman",
+        "Cooper SE"
+      ],
+    "Force": [
+        "One",
+        "Traveller 3350",
+        "Trax",
+        "Gurkha"
+      ],
+    "Opel": [
+        "Corsa",
+        "Astra"
+      ],
+    "Porsche": [
+        "911",
+        "Cayenne",
+        "Macan",
+        "Cayman",
+        "Panamera",
+        "Boxter",
+        "Taycan",
+        "Taycan Turismo"
+      ],
+    "Daewoo": [
+        "Matiz",
+        "Nexia",
+        "Cielo"
+      ],
+    "Hindustan Motors": [
+        "Ambassador"
+      ],
+    "Aston Martin": [
+        "Vantage",
+        "Rapide",
+        "Vanquish",
+        "DB9"
+      ],
+    "Citroen": [
+        "C5 Aircross",
+        "C3"
+      ],
+    "Lexus": [
+        "ES",
+        "NX",
+        "LS",
+        "RX",
+        "LC",
+        "LX"
+      ],
+    "Bentley": [
+        "Mulsanne",
+        "Continental",
+        "Flying Spur"
+      ],
+    "DC": [
+        "Avanti"
+      ],
+    "Ferrari": [
+        "458 Speciale",
+        "458 Italia",
+        "488",
+        "California",
+        "F12 Berlinetta",
+        "FF"
+      ],
+    "Maserati": [
+        "Ghibli",
+        "Quattroporte",
+        "GranCabrio",
+        "GranTurismo"
+      ],
+    "Lamborghini": [
+        "Huracan",
+        "Aventador",
+        "Gallardo",
+        "Urus"
+      ],
+    "Rolls Royce": [
+        "Phantom",
+        "Ghost",
+        "Wraith"
+      ],
+    "Photon": [
+        "VIW CS2"
+      ],
+    "Jayem": [
+        "Neo"
+      ],
+    "Premier": [
+        "Rio"
+    ],
+    "Hummer": [
+        "H2",
+        "H3"
+    ],
+    "BYD": [
+        "e6"
+    ]
+    // ... (remaining brands and models as per your JSON)
+  };
+
+  // Create a reverse lookup map from model to brand
+  const modelToBrand = {};
+  Object.entries(carModelsByBrand).forEach(([brand, models]) => {
+    models.forEach(model => {
+      modelToBrand[model] = brand;
+    });
+  });
+
+  // Get all models across all brands
+  const allModels = Object.values(carModelsByBrand).flat();
   
   const [formData, setFormData] = useState({
     carBrand: '',
@@ -86,17 +496,15 @@ const AddNewCar = ({ onClose, onSubmit }) => {
     variant: '[16 DUAL VTV] BASE'
   });
 
-  const [carModels, setCarModels] = useState([]);
-  const [isBrandOpen, setIsBrandOpen] = useState(false);
+  // const [carModels, setCarModels] = useState([]);
+  // const [isBrandOpen, setIsBrandOpen] = useState(false);
   const [isModelOpen, setIsModelOpen] = useState(false);
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
 
-  useEffect(() => {
-    if (formData.carBrand) {
-      setCarModels(carModelsByBrand[formData.carBrand] || []);
-    } else {
-      setCarModels([]);
-    }
-  }, [formData.carBrand]);
+  // Filter models based on search query
+  const filteredModels = allModels.filter(model => 
+    model.toLowerCase().startsWith(modelSearchQuery.toLowerCase())
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -106,21 +514,41 @@ const AddNewCar = ({ onClose, onSubmit }) => {
     }));
   };
 
-  const selectBrand = (brand) => {
-    setFormData(prev => ({
-      ...prev,
-      carBrand: brand,
-      carModel: ''
-    }));
-    setIsBrandOpen(false);
-  };
+  // const selectBrand = (brand) => {
+  //   setFormData(prev => ({
+  //     ...prev,
+  //     carBrand: brand,
+  //     // Don't reset carModel when brand is selected
+  //   }));
+  //   setIsBrandOpen(false);
+  // };
 
   const selectModel = (model) => {
+    const correspondingBrand = modelToBrand[model];
     setFormData(prev => ({
       ...prev,
-      carModel: model
+      carModel: model,
+      carBrand: correspondingBrand // Automatically set the brand
     }));
     setIsModelOpen(false);
+    setModelSearchQuery(''); // Clear search query after selection
+  };
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (isModelOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isModelOpen]);
+
+  const handleModelSearchClick = () => {
+    setIsModelOpen(!isModelOpen);
+    // Focus search input when opening
+    if (!isModelOpen && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current.focus();
+      }, 0);
+    }
   };
 
   const handleSubmit = () => {
@@ -151,59 +579,62 @@ const AddNewCar = ({ onClose, onSubmit }) => {
           <div className="space-y-4">
             {/* Car Brand Dropdown */}
             <div className="flex flex-col relative">
-              <label className="text-sm text-gray-600 mb-1">Car Brand *</label>
-              <button
-                type="button"
-                className="p-3 border border-gray-300 rounded-lg flex justify-between items-center bg-white"
-                onClick={() => setIsBrandOpen(!isBrandOpen)}
-              >
-                <span className="text-gray-700">{formData.carBrand || 'Select Car Brand'}</span>
-                <ChevronDown size={20} className="text-gray-500" />
-              </button>
-              {isBrandOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10">
-                  {carBrands.map((brand) => (
-                    <button
-                      key={brand}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100"
-                      onClick={() => selectBrand(brand)}
-                    >
-                      {brand}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Car Model Dropdown */}
+  <label className="text-sm text-gray-600 mb-1">Car Brand *</label>
+  <input
+    type="text"
+    value={formData.carBrand}
+    className="p-3 border border-gray-300 rounded-lg bg-gray-50"
+    placeholder="Brand will be set automatically"
+    readOnly
+  />
+</div>
+            {/* Car Model Dropdown with Search */}
             <div className="flex flex-col relative">
               <label className="text-sm text-gray-600 mb-1">Car Model *</label>
-              <button
-                type="button"
-                className={`p-3 border border-gray-300 rounded-lg flex justify-between items-center bg-white ${
-                  !formData.carBrand ? 'cursor-not-allowed bg-gray-50' : ''
-                }`}
-                onClick={() => formData.carBrand && setIsModelOpen(!isModelOpen)}
-                disabled={!formData.carBrand}
-              >
-                <span className="text-gray-700">
-                  {formData.carModel || 'Select Car Model'}
-                </span>
-                <ChevronDown size={20} className="text-gray-500" />
-              </button>
-              {isModelOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto z-10">
-                  {carModels.map((model) => (
-                    <button
-                      key={model}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-100"
-                      onClick={() => selectModel(model)}
-                    >
-                      {model}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="relative">
+                <button
+                  type="button"
+                  className="w-full p-3 border border-gray-300 rounded-lg flex justify-between items-center bg-white"
+                  onClick={handleModelSearchClick}
+                >
+                  <span className="text-gray-700">
+                    {formData.carModel || 'Select Car Model'}
+                  </span>
+                  <ChevronDown size={20} className="text-gray-500" />
+                </button>
+                {isModelOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10">
+                    <div className="p-2 border-b sticky top-0 bg-white">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                        <input
+                          ref={searchInputRef}
+                          type="text"
+                          value={modelSearchQuery}
+                          onChange={(e) => setModelSearchQuery(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                          placeholder="Search car model..."
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto">
+                      {filteredModels.length > 0 ? (
+                        filteredModels.map((model) => (
+                          <button
+                            key={model}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                            onClick={() => selectModel(model)}
+                          >
+                            {model}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-4 py-2 text-gray-500">No models found</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Rest of the form remains unchanged */}
