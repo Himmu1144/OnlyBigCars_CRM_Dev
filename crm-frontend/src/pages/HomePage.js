@@ -3,131 +3,199 @@ import Layout from '../components/layout';
 import axios from 'axios';
 import { Edit, Copy, Search } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
+import { useLocation } from 'react-router-dom';
+import { Alert } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 
 const HomePage = () => {
+    const navigate = useNavigate();
     const { token } = useContext(AuthContext);
+    const location = useLocation();
+    const [showSuccessAlert, setShowSuccessAlert] = useState(false);
 
     // Add new state
     const [welcomeData, setWelcomeData] = useState('');
     const [leads, setLeads] = useState([]);
+    const [users, setUsers] = useState([]); // Add state for users
     const [searchQuery, setSearchQuery] = useState('');
+    const [searchMessage, setSearchMessage] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
+    const [filterFormData, setFilterFormData] = useState({
+        user: '',
+        source: '',
+        status: '',
+        location: '',
+        language_barrier: false
+    });
 
-    // Add search handler
-    const handleSearch = (e) => {
+    const handleSearch = async (e) => {
         e.preventDefault();
-        console.log('Searching for:', searchQuery);
+        setSearchMessage(''); // Clear any previous messages
+        try {
+            const response = await axios.get(`http://localhost:8000/api/leads/search/?mobile=${searchQuery}`, {
+                headers: {
+                    'Authorization': `Token ${token}`
+                }
+            });
+            if (response.data.leads.length === 0) {
+                setSearchMessage(`No leads found for "${searchQuery}"`);
+            }
+            setLeads(response.data.leads);
+            setSearchQuery(''); // Clear search field
+
+        } catch (error) {
+            console.error('Error searching leads:', error);
+            setSearchMessage('Error occurred while searching');
+        }
     };
 
-    // Add form handling
-    const handleSubmit = (e) => {
+    const handleFilterChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setFilterFormData(prev => ({
+            ...prev,
+            [name]: type === 'checkbox' ? checked : value
+        }));
+    };
+
+    const handleFilterSubmit = async (e) => {
         e.preventDefault();
-        // Handle form submission
+        setSearchMessage(''); 
+        try {
+            const response = await axios.post(
+                'http://localhost:8000/api/leads/filter/',
+                filterFormData,
+                {
+                    headers: {
+                        'Authorization': `Token ${token}`
+                    }
+                }
+            );
+            if (response.data.leads.length === 0) {
+                setSearchMessage('No leads found for the selected filters');
+            }
+            setLeads(response.data.leads);
+        } catch (error) {
+            console.error('Error filtering leads:', error);
+            setSearchMessage('Error occurred while filtering');
+        }
     };
 
     const handleReset = (e) => {
         e.target.form.reset();
+        setFilterFormData({
+            user: '',
+            source: '',
+            status: '',
+            location: '',
+            language_barrier: false
+        });
     };
 
     useEffect(() => {
-        // Fetch welcome message
+        // Fetch welcome message and users
         axios.get('http://127.0.0.1:8000/', {
             headers: {
                 Authorization: `Token ${token}`
             }
         })
-            .then(response => setWelcomeData(response.data.message))
+            .then(response => {
+                setWelcomeData(response.data.message);
+                setUsers(response.data.users); // Set users data
+            })
             .catch(error => console.error('Error fetching home data:', error));
-
-        // You'll need to create this endpoint in your backend
-        // Temporarily using static data
-        setLeads([
-            {
-                id: 'L-7017023787-BUVJDQ',
-                type: 'General',
-                location: 'Patna',
-                name: 'Customer',
-                vehicle: 'Maruti Suzuki WagonR Petrol',
-                number: '7017023787',
-                source: 'U-Organic',
-                orderId: 'NA',
-                regNumber:'NA',
-                status: 'Assigned',
-                cce: 'CCE: Ggn Hq-Anan',
-                ca: 'CA:NA',
-                recallDate: 'Jun 06,2023,08:26 AM',
-                arrivalDate: 'Jun 06, 2023,08:26 AM',
-                createdAt: 'Jun 06,2023,08:26 AM',
-                modifiedAt: 'Jun 06,2023,08:26 AM'
-            },
-            {
-                id: 'L-963412834-7-IUFIWR',
-                type: 'General',
-                location: 'Patna',
-                name: 'Customer',
-                vehicle: 'Maruti Suzuki WagonR Petrol',
-                number: '7017023787',
-                source: 'U-Organic',
-                orderId: 'NA',
-                regNumber:'NA',
-                status: 'Assigned',
-                cce: 'CCE: Ggn Hq-Anan',
-                ca: 'CA:NA',
-                recallDate: 'Jun 06,2023,08:26 AM',
-                arrivalDate: 'Jun 06, 2023,08:26 AM',
-                createdAt: 'Jun 06,2023,08:26 AM',
-                modifiedAt: 'Jun 06,2023,08:26 AM'
-            },
-            {
-                id: 'L-963412834-7-IUFIWR',
-                type: 'General',
-                location: 'Patna',
-                name: 'Customer',
-                vehicle: 'Maruti Suzuki WagonR Petrol',
-                number: '7017023787',
-                source: 'U-Organic',
-                orderId: 'NA',
-                regNumber:'NA',
-                status: 'Assigned',
-                cce: 'CCE: Ggn Hq-Anan',
-                ca: 'CA:NA',
-                recallDate: 'Jun 06,2023,08:26 AM',
-                arrivalDate: 'Jun 06, 2023,08:26 AM',
-                createdAt: 'Jun 06,2023,08:26 AM',
-                modifiedAt: 'Jun 06,2023,08:26 AM'
-            },
-            
-        ]);
     }, [token]);
+
+    useEffect(() => {
+        const fetchLeads = async () => {
+            try {
+                const response = await axios.get('http://localhost:8000/', {
+                    headers: {
+                        'Authorization': `Token ${token}`
+                    }
+                });
+                setLeads(response.data.leads);
+            } catch (error) {
+                console.error('Error fetching leads:', error);
+            }
+        };
+
+        fetchLeads();
+    }, [token]);
+
+    useEffect(() => {
+        if (location.state?.message) {
+            setAlertMessage(location.state.message);
+            setShowSuccessAlert(true);
+            // Clear location state
+            window.history.replaceState({}, document.title);
+            // Auto-dismiss after 3 seconds
+            setTimeout(() => {
+                setShowSuccessAlert(false);
+                setAlertMessage('');
+            }, 3000);
+        }
+    }, [location]);
 
     return (
         <Layout>
+            {showSuccessAlert && alertMessage && (
+                <Alert
+                    variant="success"
+                    onClose={() => setShowSuccessAlert(false)}
+                    dismissible
+                    className="edit-page-alert"
+                    style={{ marginTop: '0.2em' }}
+                >
+                    <p>{alertMessage}</p>
+                </Alert>
+            )}
             {/* <h1 className="text-2xl font-bold mb-6">{welcomeData || 'Welcome to the Home Page!'}</h1> */}
             
             {/* New Form Section */}
-            <div className="bg-gray-50 p-6 rounded-lg mb-8" style={{ marginTop: '4.2em' }}>
+            <div className="bg-gray-50 p-6 rounded-lg mb-8">
                 <p>All Lead</p>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleFilterSubmit} className="space-y-4">
                     <div className="grid grid-cols-5 gap-4">
                         {/* First Row */}
-                        <select className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        <select
+                            name="user"
+                            value={filterFormData.user}
+                            onChange={handleFilterChange}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        >
                             <option value="">Select User</option>
-                            <option value="option1">Option 1</option>
-                            <option value="option2">Option 2</option>
-                            <option value="option3">Option 3</option>
+                            {users.map(user => (
+                                <option key={user.id} value={user.username}>{user.username}</option>
+                            ))}
                         </select>
-                        <select className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        <select
+                            name="source"
+                            value={filterFormData.source}
+                            onChange={handleFilterChange}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        >
                             <option value="">Source</option>
                             <option value="option1">Option 1</option>
                             <option value="option2">Option 2</option>
                             <option value="option3">Option 3</option>
                         </select>
-                        <select className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        <select
+                            name="dateTimeRange"
+                            value={filterFormData.dateTimeRange}
+                            onChange={handleFilterChange}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        >
                             <option value="">Date Time Range</option>
                             <option value="option1">Option 1</option>
                             <option value="option2">Option 2</option>
                             <option value="option3">Option 3</option>
                         </select>
-                        <select className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        <select
+                            name="paymentStatus"
+                            value={filterFormData.paymentStatus}
+                            onChange={handleFilterChange}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        >
                             <option value="">Payment Status</option>
                             <option value="option1">Payment Successful</option>
                             <option value="option2">Payment Pending</option>
@@ -138,6 +206,9 @@ const HomePage = () => {
                             <label className="flex items-center space-x-2 cursor-pointer">
                                 <input
                                     type="checkbox"
+                                    name="language_barrier"
+                                    checked={filterFormData.language_barrier}
+                                    onChange={handleFilterChange}
                                     className="w-4 h-4 text-red-500 border-gray-300 rounded focus:ring-red-500"
                                 />
                                 <span className="text-gray-700">Language Barrier</span>
@@ -147,32 +218,47 @@ const HomePage = () => {
                     
                     <div className="grid grid-cols-5 gap-4">
                         {/* Second Row */}
-                        <select className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        <select
+                            name="status"
+                            value={filterFormData.status}
+                            onChange={handleFilterChange}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        >
                             <option value="">Status</option>
                             <option value="option1">Option 1</option>
                             <option value="option2">Option 2</option>
                             <option value="option3">Option 3</option>
                         </select>
-                        <select className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        <select
+                            name="location"
+                            value={filterFormData.location}
+                            onChange={handleFilterChange}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        >
                             <option value="">Location</option>
                             <option value="Gurugram">Gurugram</option> <option value="Delhi">Delhi</option> <option value="Faridabad">Faridabad</option> <option value="Kanpur">Kanpur</option> <option value="Dehradun">Dehradun</option> <option value="Chandigarh">Chandigarh</option> <option value="Bangalore">Bangalore</option> <option value="Jaipur">Jaipur</option> <option value="Lucknow">Lucknow</option> <option value="Chennai">Chennai</option> <option value="Kolkata">Kolkata</option> <option value="Mumbai">Mumbai</option> <option value="Hyderabad">Hyderabad</option> <option value="Pune">Pune</option> <option value="Ahmedabad">Ahmedabad</option>
                         </select>
-                        <select className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent">
-                            <option value="">Luxury/Normal </option>
-                            <option value="option1">Luxury</option>
-                            <option value="option2">Normal</option>
+                        <select
+                            name="luxuryNormal"
+                            value={filterFormData.luxuryNormal}
+                            onChange={handleFilterChange}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        >
+                            <option value="">Luxury/Normal</option>
+                            <option value="luxury">Luxury</option>
+                            <option value="normal">Normal</option>
                         </select>
-                        <select className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        <select
+                            name="dateCreated"
+                            value={filterFormData.dateCreated}
+                            onChange={handleFilterChange}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        >
                             <option value="">Date Created</option>
                             <option value="option1">Option 1</option>
                             <option value="option2">Option 2</option>
                             <option value="option3">Option 3</option>
                         </select>
-                        {/* <input 
-                        type="date" 
-                        className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        placeholder="Date Created"
-                    /> */}
                         {/* Buttons in the last column */}
                         <div className="flex gap-2">
                             <button
@@ -214,14 +300,14 @@ const HomePage = () => {
                         Apply
                     </button>
                 </div>
-                <button className="px-4 py-2 border-2 border-red-500 text-red-500 rounded-md hover:bg-red-500 hover:text-white transition-colors duration-300">
+                <button onClick={() => navigate('/edit')} className="px-4 py-2 border-2 border-red-500 text-red-500 rounded-md hover:bg-red-500 hover:text-white transition-colors duration-300">
                     Add Lead
                 </button>
             </div>
 
             <div className="container mt-4">
                 <div className="overflow-x-auto">
-                    <table className="w-full border-collapse table-container" >
+                    <table className="w-full border-collapse table-container">
                         <thead className="bg-red-500 text-white">
                             <tr>
                                 <th className="p-3 text-left">Lead Id | Type | Location</th>
@@ -278,8 +364,19 @@ const HomePage = () => {
                             ))}
                         </tbody>
                     </table>
+                    {/* Add message display above table */}
+                    {searchMessage && (
+                        <div className="text-center py-2 text-gray-600">
+                            {searchMessage}
+                        </div>
+                    )}
                 </div>
             </div>
+            <footer className="bg-gray-50">
+                <p className="text-center py-4" style={{ marginTop: '2em', marginBottom: '0' }}>
+                    © 2025 OnlyBigCars All Rights Reserved.
+                </p>
+            </footer>
         </Layout>
     );
 };

@@ -1,57 +1,94 @@
+import uuid
 from django.db import models
+from django.contrib.auth.models import User
 
-# No need to define Token model as it's provided by DRF
-# For reference, this is what DRF's Token model looks like internally:
-"""
-from django.conf import settings
-from django.db import models
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    status = models.CharField(max_length=100, null=True, blank=True)
+    leads = models.ManyToManyField('Lead', blank=True, related_name='assigned_profiles')
+    orders = models.ManyToManyField('Order', blank=True, related_name='assigned_profiles')
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['user'], name='unique_user_profile')
+        ]
 
-class Token(models.Model):
-    key = models.CharField(max_length=40, primary_key=True)
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, related_name='auth_token',
-        on_delete=models.CASCADE
+    def __str__(self):
+        return self.user.username
+
+class Customer(models.Model):
+    mobile_number = models.CharField(max_length=15, unique=True)  # Made unique
+    customer_name = models.CharField(max_length=100)
+    whatsapp_number = models.CharField(max_length=15, null=True, blank=True)
+    customer_email = models.EmailField(null=True, blank=True)
+    language_barrier = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.customer_name} - {self.mobile_number}"
+
+class Order(models.Model):
+    order_id = models.CharField(max_length=100, unique=True)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='customer_orders')
+    profile = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True, related_name='profile_orders')
+    order_details = models.JSONField(null=True, blank=True)
+    leads = models.ManyToManyField('Lead', blank=True, related_name='related_orders')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Order {self.order_id}"
+
+    def get_customers(self):
+        """Helper method to get related customers"""
+        return self.customers.all()
+
+class Lead(models.Model):
+    # Add this method to generate lead_id
+    def generate_lead_id():
+        return str(uuid.uuid4()).split('-')[0].upper()
+
+    lead_id = models.CharField(
+        max_length=100, 
+        unique=True,
+        default=generate_lead_id,
+        editable=False
     )
-    created = models.DateTimeField(auto_now_add=True)
-"""
-
-# class Lead(models.Model):
-#     # Customer Information
-#     customer_name = models.CharField(max_length=255)
-#     mobile_number = models.CharField(max_length=20)
-#     whatsapp_number = models.CharField(max_length=20, blank=True)
-#     customer_email = models.EmailField(blank=True)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='customer_leads')
+    profile = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True, related_name='profile_leads')
+    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, related_name='order_leads')
     
-#     # Location Information
-#     address = models.TextField()
-#     city = models.CharField(max_length=100)
-#     state = models.CharField(max_length=100)
-#     building_name = models.CharField(max_length=255, blank=True)
-#     flat_number = models.CharField(max_length=50, blank=True)
-#     landmark = models.CharField(max_length=255, blank=True)
+    # Basic Information
+    source = models.CharField(max_length=100, null=True, blank=True)
+    service_type = models.CharField(max_length=100, null=True, blank=True)
+    products = models.JSONField(null=True, blank=True)
+    estimated_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    lead_type = models.CharField(max_length=50, null=True, blank=True)
 
-#     # Car Details
-#     vehicle_type = models.CharField(max_length=50)  # Luxury/Normal
-#     car_model = models.CharField(max_length=255)
-#     registration_number = models.CharField(max_length=50)
+    # Location Information
+    address = models.TextField(null=True, blank=True)
+    city = models.CharField(max_length=100, null=True, blank=True)
+    state = models.CharField(max_length=100, null=True, blank=True)
+    building = models.CharField(max_length=200, null=True, blank=True)
+    landmark = models.CharField(max_length=200, null=True, blank=True)
+    flat_number = models.CharField(max_length=50, null=True, blank=True)
 
-#     # Service Details
-#     selected_services = models.JSONField(default=list)
-#     ca_comments = models.TextField(blank=True)
-    
-#     # Workshop Details
-#     workshop_name = models.CharField(max_length=255)
-#     ca_assigned = models.CharField(max_length=255)
-#     cce_assigned = models.CharField(max_length=255)
-    
-#     # Status and Timestamps
-#     lead_status = models.CharField(max_length=50)
-#     arrival_mode = models.CharField(max_length=50)
-#     arrival_date = models.DateTimeField(null=True, blank=True)
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     modified_at = models.DateTimeField(auto_now=True)
+    # Status and Timing
+    lead_status = models.CharField(max_length=100, null=True, blank=True)
+    arrival_mode = models.CharField(max_length=100, null=True, blank=True)
+    disposition = models.CharField(max_length=100, null=True, blank=True)
+    arrival_time = models.DateTimeField(null=True, blank=True)
 
-#     def __str__(self):
-#         return f"{self.customer_name} - {self.car_model}"
+    # Workshop Details
+    workshop_details = models.JSONField(null=True, blank=True)
+    ca_name = models.CharField(max_length=100, null=True, blank=True)
+    # cce = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True, related_name='assigned_leads')
+    cce_comments = models.TextField(null=True, blank=True)
 
-# Add your custom models here if needed
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Lead {self.lead_id}"
+
