@@ -17,6 +17,39 @@ const EditPage = () => {
 
   const services = ['Car Service', 'AC Service & Repair','Complete Car Inspection','Denting & Painting','Detailing for Luxury Cars','Brakes & Suspension','Car Battery & Electricals','Tyre & Wheel Care','Cleaning & Grooming','Clutch & Body Parts','Insurance Services & SOS-Emergency','Windshields & Lights'];
   const [selectedService, setSelectedService] = useState('Car Service');
+
+  const [selectedGarage, setSelectedGarage] = useState({
+    name: 'OnlyBigCars-Shiv Petrolium',
+    locality: 'Sec-15A Faridabad',
+    distance: '2.31 K.M.',
+    status: 'Open'
+  });
+
+  const handleGarageSelect = (garage) => {
+    // Update selectedGarage state
+    setSelectedGarage({
+      name: garage.name,
+      locality: garage.locality, 
+      distance: garage.distance,
+      status: garage.status.replace('Garage ', '')
+    });
+  
+    // Sync with formState.workshop
+    setFormState(prev => ({
+      ...prev,
+      workshop: {
+        ...prev.workshop,
+        name: garage.name,
+        locality: garage.locality,
+        status: garage.status.replace('Garage ', '')
+      }
+    }));
+  
+    setShowGaragePopup(false);
+  };
+
+
+  
   
   const [formState, setFormState] = useState({
     overview: {
@@ -46,11 +79,12 @@ const EditPage = () => {
       leadStatus: '',
       arrivalMode: '',
       disposition: '',
-      dateTime: ''
+      dateTime: '',
     },
     workshop: {
       name: '',
       locality: '',
+      status:'',
       ca: '',
       cce: '',
       comments: '',
@@ -60,6 +94,8 @@ const EditPage = () => {
       carType : '',
     },
   });
+
+
 
   const calculateTotalAmount = (tableData) => {
     return tableData.reduce((sum, row) => {
@@ -1087,19 +1123,23 @@ const EditPage = () => {
                           <div className="d-flex align-items-center gap-2">
                             <FaMapMarkerAlt size={24} className="text-danger" />
                             <div>
-                              <div className="fw-medium">OnlyBigCars-Shiv Petrolium</div>
-                              <div className="text-muted">Locality : Sec-15A Faridabad</div>
+                              <div className="fw-medium">{selectedGarage.name}</div>
+                              <div className="text-muted">Locality : {selectedGarage.locality}</div>
                             </div>
                           </div>
 
                           <div className="text-start">
-                            <div className="text-muted">Distance: 2.31 K.M.</div>
-                            <div className="text-success">Status: Open</div>
+                            <div className="text-muted">Distance: {selectedGarage.distance}</div>
+                            <div className="text-success">Status: {selectedGarage.status}</div>
                           </div>
                         </div>
                       </div>
 
+                     
+
                       {/* Right button container - matches height automatically */}
+
+                      
                       <div className="flex-1 d-flex" style={{ background: "#DEE1E6", borderRadius: "4px" }}>
                         <Button
                           type='button'
@@ -1110,6 +1150,12 @@ const EditPage = () => {
                           <FaPencilAlt size={14} className="me-1" />
                           Change Workshop
                           </Button>
+                          {showGaragePopup && (
+                        <GarageSelector 
+                          onClose={() => setShowGaragePopup(false)} 
+                          onSelectGarage={handleGarageSelect}
+                        />
+                      )}
                       </div>
                     </div>
                   </Card.Body>
@@ -1186,7 +1232,6 @@ const EditPage = () => {
           </div>
 
         </div>
-        {showGaragePopup && <GarageSelector onClose={() => setShowGaragePopup(false)} />}
         {showAddCarModal && (
           <AddNewCar 
             onClose={() => setShowAddCarModal(false)} 

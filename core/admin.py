@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Profile, Customer, Order, Lead
+from .models import Profile, Customer, Order, Lead, Car
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
@@ -20,9 +20,15 @@ class OrderAdmin(admin.ModelAdmin):
     list_filter = ['created_at']
     filter_horizontal = ['leads']
 
+@admin.register(Car)
+class CarAdmin(admin.ModelAdmin):
+    list_display = ['brand', 'model', 'year', 'customer', 'created_at']
+    search_fields = ['brand', 'model', 'reg_no', 'chasis_no']
+    list_filter = ['brand', 'created_at']
+
 @admin.register(Lead)
 class LeadAdmin(admin.ModelAdmin):
-    list_display = ['lead_id', 'customer', 'profile', 'order', 'lead_status', 'created_at']
+    list_display = ['lead_id', 'customer', 'car', 'profile', 'order', 'lead_status', 'created_at']
     search_fields = ['lead_id', 'customer__customer_name', 'city']
     list_filter = ['lead_status', 'lead_type', 'city', 'created_at']
     fieldsets = (

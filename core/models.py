@@ -43,6 +43,20 @@ class Order(models.Model):
     def get_customers(self):
         """Helper method to get related customers"""
         return self.customers.all()
+    
+class Car(models.Model):
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='cars')
+    brand = models.CharField(max_length=100)
+    model = models.CharField(max_length=100)
+    year = models.CharField(max_length=4)
+    variant = models.CharField(max_length=100, null=True, blank=True)
+    chasis_no = models.CharField(max_length=100, null=True, blank=True)
+    reg_no = models.CharField(max_length=50, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.brand} {self.model} ({self.year})"
 
 class Lead(models.Model):
     # Add this method to generate lead_id
@@ -56,6 +70,7 @@ class Lead(models.Model):
         editable=False
     )
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='customer_leads')
+    car = models.ForeignKey(Car, on_delete=models.SET_NULL, null=True, related_name='leads')
     profile = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True, related_name='profile_leads')
     order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, related_name='order_leads')
     
