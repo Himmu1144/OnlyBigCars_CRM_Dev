@@ -10,7 +10,7 @@ from django.contrib.auth.models import User
 from rest_framework import status
 
 from django.db import transaction
-from .models import Customer, Lead, Profile, Order
+from .models import Customer, Lead, Profile, Order, Car
 
 
 @api_view(['GET'])
@@ -74,6 +74,7 @@ def edit_form_submit(request):
             
             # Extract data
             customer_data = request.data.get('customerInfo')
+            cars_data = request.data.get('cars', [])
             location_data = request.data.get('location')
             workshop_data = request.data.get('workshop')
             arrival_data = request.data.get('arrivalStatus')
@@ -90,10 +91,27 @@ def edit_form_submit(request):
                 }
             )
 
+            # Save cars
+            saved_car = None
+            for car_data in cars_data:
+                saved_car = Car.objects.create(
+                    customer=customer,
+                    brand=car_data.get('carBrand'),
+                    model=car_data.get('carModel'),
+                    year=car_data.get('year'),
+                    variant=car_data.get('variant'),
+                    chasis_no=car_data.get('chasisNo'),
+                    reg_no=car_data.get('regNo')
+                )
+                # Use first car if multiple cars are submitted
+                if not saved_car:
+                    saved_car = saved_car
+
             # Create lead with user's profile
             lead = Lead.objects.create(
                 profile=user_profile,  # Add the user's profile
                 customer=customer,
+                car=saved_car,
                 source=customer_data['source'],
                 lead_type=basic_data['carType'],
                 # Location info
@@ -224,7 +242,7 @@ def lead_format(leads):
         'type': lead.lead_type or 'NA',
         'location': lead.city or 'NA',
         'name': lead.customer.customer_name if lead.customer else 'NA',
-        'vehicle': 'NA',
+        'vehicle': f"{lead.car.brand} {lead.car.model} ({lead.car.year})" if lead.car else 'NA',  # Modified this line
         'number': lead.customer.mobile_number if lead.customer else 'NA',
         'source': lead.source or 'NA',
         'orderId': lead.order.order_id if lead.order else 'NA',
