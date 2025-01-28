@@ -23,4 +23,4 @@ COPY . .
 RUN python manage.py collectstatic --noinput
 
 # Modified CMD line to explicitly use 0.0.0.0
-CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 3 --threads 8 crm-backend.wsgi:application
+CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 3 --threads 8 crm_backend.wsgi:application
