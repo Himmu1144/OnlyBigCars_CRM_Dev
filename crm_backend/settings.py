@@ -34,7 +34,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://ivory-enigma-449205-u0.firebaseapp.com/",
 ]
 
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_CREDENTIALS = False
 
 # Application definition
 
