@@ -1,12 +1,12 @@
 .table-container {
-    max-height: 400px; /* Set the maximum height for the table container */
-    overflow-y: auto; /* Enable vertical scrolling */
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 tbody {
     display: block;
-    max-height: 400px; /* Set the maximum height for the table body */
-    overflow-y: auto; /* Enable vertical scrolling */
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 thead, tbody tr {

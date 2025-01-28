@@ -15,6 +15,7 @@ const App = () => {
                     <Route path="/login" element={<PublicRoute element={LoginPage} />} />
                     <Route path="/" element={<PrivateRoute element={HomePage} />} />
                     <Route path="/edit" element={<PrivateRoute element={EditPage} />} />
+                    <Route path="/edit/:id?" element={<PrivateRoute element={EditPage} />} />
                 </Routes>
             </Router>
         </AuthProvider>

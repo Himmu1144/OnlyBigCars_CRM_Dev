@@ -33,19 +33,19 @@ class LeadAdmin(admin.ModelAdmin):
     list_filter = ['lead_status', 'lead_type', 'city', 'created_at']
     fieldsets = (
         ('Relationships', {
-            'fields': ('customer', 'profile', 'order')
+            'fields': ('customer', 'profile', 'order','car')
         }),
         ('Basic Info', {
-            'fields': ('lead_id', 'source', 'service_type', 'lead_type', 'estimated_price')
+            'fields': ('lead_id', 'source', 'service_type', 'lead_type', 'estimated_price', 'products', 'ca_name', 'cce_name', 'ca_comments', 'cce_comments')
         }),
         ('Location', {
-            'fields': ('address', 'city', 'state', 'building', 'landmark', 'flat_number')
+            'fields': ('address', 'city', 'state', 'building', 'landmark', 'map_link')
         }),
         ('Status', {
-            'fields': ('lead_status', 'arrival_mode', 'disposition', 'arrival_time')
+            'fields': ('lead_status', 'arrival_mode', 'disposition', 'arrival_time', 'is_read')
         }),
         ('Workshop', {
-            'fields': ('workshop_details', 'ca_name', 'cce_comments')
+            'fields': ('workshop_details',)
         })
     )
     readonly_fields = ('lead_id',)  # Make lead_id read-only in admin

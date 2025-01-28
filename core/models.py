@@ -87,7 +87,7 @@ class Lead(models.Model):
     state = models.CharField(max_length=100, null=True, blank=True)
     building = models.CharField(max_length=200, null=True, blank=True)
     landmark = models.CharField(max_length=200, null=True, blank=True)
-    flat_number = models.CharField(max_length=50, null=True, blank=True)
+    map_link = models.CharField(max_length=50, null=True, blank=True)
 
     # Status and Timing
     lead_status = models.CharField(max_length=100, null=True, blank=True)
@@ -98,11 +98,14 @@ class Lead(models.Model):
     # Workshop Details
     workshop_details = models.JSONField(null=True, blank=True)
     ca_name = models.CharField(max_length=100, null=True, blank=True)
+    ca_comments = models.TextField(null=True, blank=True)
+    cce_name = models.CharField(max_length=100, null=True, blank=True)
     # cce = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True, related_name='assigned_leads')
     cce_comments = models.TextField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_read = models.BooleanField(default=False,)
 
     def __str__(self):
         return f"Lead {self.lead_id}"

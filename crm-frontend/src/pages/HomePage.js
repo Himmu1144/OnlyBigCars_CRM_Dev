@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useRef, useCallback } from 'react';
 import Layout from '../components/layout';
 import axios from 'axios';
-import { Edit, Copy, Search } from 'lucide-react';
+import { Edit, Copy, Search, Plus } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { useLocation } from 'react-router-dom';
 import { Alert } from 'react-bootstrap';
@@ -12,7 +12,6 @@ const HomePage = () => {
     const navigate = useNavigate();
     const { token } = useContext(AuthContext);
     const location = useLocation();
-    // const location = useLocation();
     const [showSuccessAlert, setShowSuccessAlert] = useState(false);
 
     // Add new state
@@ -23,38 +22,99 @@ const HomePage = () => {
     const [searchMessage, setSearchMessage] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
     const [filterFormData, setFilterFormData] = useState({
-        // user: '',
-        // source: '',
-        // status: '',
-        // location: '',
-        // language_barrier: false
-    source: '',
-    status: '',
-    location: '',
-    status: '',
-    arrivalMode: '',
-    language_barrier: false,
-    dateRange: {
-        startDate: '',
-        endDate: ''
-    },
+        source: '',
+        status: '',
+        location: '',
+        arrivalMode: '',
+        language_barrier: false,
+        dateRange: {
+            startDate: '',
+            endDate: ''
+        },
     });
 
-    const handleSearch = async (e) => {
-        e.preventDefault();
-        setSearchMessage(''); // Clear any previous messages
+    // Add pagination state
+    const [isLoading, setIsLoading] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalLeads, setTotalLeads] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+
+    // Add ref for the table body
+    const tableRef = useRef(null);
+
+    const fetchLeads = async () => {
         try {
-            const response = await axios.get(`http://localhost:8000/api/leads/search/?query=${searchQuery}`, {
+            setIsLoading(true);
+            const response = await axios.get(`http://localhost:8000/?page=1`, {
                 headers: {
                     'Authorization': `Token ${token}`
                 }
             });
+            setLeads(response.data.leads);
+            setTotalPages(response.data.total_pages);
+            setCurrentPage(1);
+            setTotalLeads(response.data.total_leads);
+            setHasMore(response.data.current_page < response.data.total_pages);
+        } catch (error) {
+            console.error('Error fetching leads:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetchMoreLeads = async () => {
+        if (isLoading || !hasMore) return;
+
+        try {
+            setIsLoading(true);
+            const nextPage = currentPage + 1;
+            const response = await axios.get(`http://localhost:8000/?page=${nextPage}`, {
+                headers: {
+                    'Authorization': `Token ${token}`
+                }
+            });
+
+            setLeads(prevLeads => [...prevLeads, ...response.data.leads]);
+            setCurrentPage(nextPage);
+            setHasMore(nextPage < response.data.total_pages);
+        } catch (error) {
+            console.error('Error fetching more leads:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleScroll = useCallback((e) => {
+        const element = e.target;
+        if (
+            !isLoading &&
+            hasMore &&
+            Math.abs(element.scrollHeight - element.scrollTop - element.clientHeight) < 1
+        ) {
+            fetchMoreLeads();
+        }
+    }, [isLoading, hasMore]);
+
+    const handleSearch = async (e) => {
+        e.preventDefault();
+        setSearchMessage('');
+        try {
+            const response = await axios.get(`http://localhost:8000/api/leads/search/?query=${searchQuery}&page=1`, {
+                headers: {
+                    'Authorization': `Token ${token}`
+                }
+            });
+            setLeads(response.data.leads);
+            setTotalPages(response.data.total_pages);
+            setCurrentPage(1);
+            setTotalLeads(response.data.total_leads);
+            setHasMore(response.data.current_page < response.data.total_pages);
+
             if (response.data.leads.length === 0) {
                 setSearchMessage(`No leads found for "${searchQuery}"`);
             }
-            setLeads(response.data.leads);
-            setSearchQuery(''); // Clear search field
-
+            setSearchQuery('');
         } catch (error) {
             console.error('Error searching leads:', error);
             setSearchMessage('Error occurred while searching');
@@ -71,21 +131,26 @@ const HomePage = () => {
 
     const handleFilterSubmit = async (e) => {
         e.preventDefault();
-        setSearchMessage(''); 
+        setSearchMessage('');
         try {
             const response = await axios.post(
                 'http://localhost:8000/api/leads/filter/',
-                filterFormData,
+                { ...filterFormData, page: 1 },
                 {
                     headers: {
                         'Authorization': `Token ${token}`
                     }
                 }
             );
+            setLeads(response.data.leads);
+            setTotalPages(response.data.total_pages);
+            setCurrentPage(1);
+            setTotalLeads(response.data.total_leads);
+            setHasMore(response.data.current_page < response.data.total_pages);
+
             if (response.data.leads.length === 0) {
                 setSearchMessage('No leads found for the selected filters');
             }
-            setLeads(response.data.leads);
         } catch (error) {
             console.error('Error filtering leads:', error);
             setSearchMessage('Error occurred while filtering');
@@ -118,19 +183,6 @@ const HomePage = () => {
     }, [token]);
 
     useEffect(() => {
-        const fetchLeads = async () => {
-            try {
-                const response = await axios.get('http://localhost:8000/', {
-                    headers: {
-                        'Authorization': `Token ${token}`
-                    }
-                });
-                setLeads(response.data.leads);
-            } catch (error) {
-                console.error('Error fetching leads:', error);
-            }
-        };
-
         fetchLeads();
     }, [token]);
 
@@ -148,6 +200,14 @@ const HomePage = () => {
         }
     }, [location]);
 
+    useEffect(() => {
+        const tbody = tableRef.current;
+        if (tbody) {
+            tbody.addEventListener('scroll', handleScroll);
+            return () => tbody.removeEventListener('scroll', handleScroll);
+        }
+    }, [handleScroll]);
+
     return (
         <Layout>
             {showSuccessAlert && alertMessage && (
@@ -162,7 +222,7 @@ const HomePage = () => {
                 </Alert>
             )}
             {/* <h1 className="text-2xl font-bold mb-6">{welcomeData || 'Welcome to the Home Page!'}</h1> */}
-            
+
             {/* New Form Section */}
             <div className="bg-gray-50 p-6 rounded-lg mb-8">
                 <p>All Lead</p>
@@ -222,18 +282,18 @@ const HomePage = () => {
                             <option value="option3">Payment Failed</option>
                         </select> */}
 
-<select
-    name="arrivalMode"
-    value={filterFormData.arrivalMode}
-    onChange={handleFilterChange}
-    className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
->
-    <option value="">Arrival Mode</option>
-    <option value="Walkin">Walkin</option>
-    <option value="Pickup">Pickup</option>
-    <option value="Doorstep">Doorstep</option>
-</select>
-                        
+                        <select
+                            name="arrivalMode"
+                            value={filterFormData.arrivalMode}
+                            onChange={handleFilterChange}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        >
+                            <option value="">Arrival Mode</option>
+                            <option value="Walkin">Walkin</option>
+                            <option value="Pickup">Pickup</option>
+                            <option value="Doorstep">Doorstep</option>
+                        </select>
+
                         {/* Language Barrier Checkbox */}
                         <div className="flex items-center">
                             <label className="flex items-center space-x-2 cursor-pointer">
@@ -248,7 +308,7 @@ const HomePage = () => {
                             </label>
                         </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-5 gap-4">
                         {/* Second Row */}
                         <select
@@ -259,16 +319,16 @@ const HomePage = () => {
                         >
                             <option value="">Status</option>
                             <option value="">Lead Status</option>
-  <option value="Assigned">Assigned</option>
-  <option value="Follow Up">Follow Up</option>
-  <option value="CTO">CTO</option>
-  <option value="RTO">RTO</option>
-  <option value="Converted">Converted</option>
-  <option value="At Workshop">At Workshop</option>
-  <option value="Completed">Completed</option>
-  <option value="Walkin">Walkin</option>
-  <option value="Pickup">Pickup</option>
-  <option value="Doorstep">Doorstep</option>
+                            <option value="Assigned">Assigned</option>
+                            <option value="Follow Up">Follow Up</option>
+                            <option value="CTO">CTO</option>
+                            <option value="RTO">RTO</option>
+                            <option value="Converted">Converted</option>
+                            <option value="At Workshop">At Workshop</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Walkin">Walkin</option>
+                            <option value="Pickup">Pickup</option>
+                            <option value="Doorstep">Doorstep</option>
                         </select>
                         <select
                             name="location"
@@ -290,12 +350,12 @@ const HomePage = () => {
                             <option value="normal">Normal</option>
                         </select>
                         <input
-    type="date"
-    name="dateCreated"
-    value={filterFormData.dateCreated}
-    onChange={handleFilterChange}
-    className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent date-created-input"
-/>
+                            type="date"
+                            name="dateCreated"
+                            value={filterFormData.dateCreated}
+                            onChange={handleFilterChange}
+                            className="w-full p-2 border border-gray-300 rounded-md bg-white focus:ring-2 focus:ring-red-500 focus:border-transparent date-created-input"
+                        />
                         {/* Buttons in the last column */}
                         <div className="flex gap-2">
                             <button
@@ -342,80 +402,123 @@ const HomePage = () => {
                 </button>
             </div>
 
-<div className='flex justify-center'>
-            <div className="mt-4" style={{width: '96%'}}>
-                <div className="">
-                    <table className="w-full border-collapse table-container">
-                        <thead className="bg-red-500 text-white">
-                            <tr>
-                                <th className="p-3 text-left">Lead Id | Type | Location</th>
-                                <th className="p-3 text-left">Name | Vehicle</th>
-                                <th className="p-3 text-left">Number | Source</th>
-                                <th className="p-3 text-left">Order ID | Reg. Number</th>
-                                <th className="p-3 text-left">Status</th>
-                                <th className="p-3 text-left">CCE | CA</th>
-                                <th className="p-3 text-left">Date/Time</th>
-                                <th className="p-3 text-left">Created | Modified At</th>
-                                <th className="p-3 text-left">Edit/Copy</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {leads.map((lead, index) => (
-                                <tr key={`${lead.id}-${index}`} className="border-b hover:bg-gray-50">
-                                    <td className="p-3">
-                                        {lead.id}<br />
-                                        {lead.type}<br />
-                                        {lead.location}
-                                    </td>
-                                    <td className="p-3">
-                                        {lead.name}<br />
-                                        {lead.vehicle}
-                                    </td>
-                                    <td className="p-3">
-                                        {lead.number}<br />
-                                        {lead.source}
-                                    </td>
-                                    <td className="p-3">
-                                        {lead.orderId}<br />
-                                        {lead.regNumber}
-                                    </td>
-                                    <td className="p-3">{lead.status}</td>
-                                    <td className="p-3">
-                                        {lead.cce}<br />
-                                        {lead.ca}
-                                    </td>
-                                    <td className="p-3">
-                                        
-                                        Arrival Date: {lead.arrivalDate}
-                                    </td>
-                                    <td className="p-3">
-                                        {lead.createdAt}<br />
-                                        {lead.modifiedAt}
-                                    </td>
-                                    <td className="p-3">
-                                        <div className="flex gap-2">
-                                            <Edit size={16} className="cursor-pointer" />
-                                            <Copy size={16} className="cursor-pointer" />
-                                        </div>
-                                    </td>
+            <div className='flex justify-center'>
+                <div className="mt-4" style={{ width: '96%', marginBottom: '0.5em' }}>
+
+                    <div className="">
+                        <table className="w-full border-collapse table-container">
+                            <thead className="bg-red-500 text-white">
+                                <tr>
+                                    <th className="p-3 text-left">Lead Id | Type | Location</th>
+                                    <th className="p-3 text-left">Name | Vehicle</th>
+                                    <th className="p-3 text-left">Number | Source</th>
+                                    <th className="p-3 text-left">Order ID | Reg. Number</th>
+                                    <th className="p-3 text-left">Status</th>
+                                    <th className="p-3 text-left">CCE | CA</th>
+                                    <th className="p-3 text-left">Date/Time</th>
+                                    <th className="p-3 text-left">Created | Modified At</th>
+                                    <th className="p-3 text-left">Edit/Copy</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                    {/* Add message display above table */}
-                    {searchMessage && (
-                        <div className="text-center py-2 text-gray-600">
-                            {searchMessage}
-                        </div>
-                    )}
+                            </thead>
+                            <tbody ref={tableRef}>
+                                {leads.map((lead, index) => (
+                                    <tr key={`${lead.id}-${index}`} className={`border-b hover:bg-gray-50 ${(lead.status === "Assigned" || !lead.is_read) ? "bg-gray-100 border-l-2 border-l-red-500" : ""
+                                        }`}>
+                                        <td className="p-3 whitespace-normal break-words max-w-[150px]">
+                                            {lead.id}<br />
+                                            {lead.type}<br />
+                                            {lead.location}
+                                        </td>
+                                        <td className="p-3 whitespace-normal break-words max-w-[150px]">
+                                            {lead.name}<br />
+                                            {lead.vehicle}
+                                        </td>
+                                        <td className="p-3 whitespace-normal break-words max-w-[150px]">
+                                            {lead.number}<br />
+                                            {lead.source}
+                                        </td>
+                                        <td className="p-3 whitespace-normal break-words max-w-[150px]">
+                                            {lead.orderId}<br />
+                                            {lead.regNumber}
+                                        </td>
+                                        <td className="p-3 whitespace-normal break-words max-w-[150px]">{lead.status}</td>
+                                        <td className="p-3 whitespace-normal break-words max-w-[150px]">
+                                            {lead.cce}<br />
+                                            {lead.ca}
+                                        </td>
+                                        <td className="p-3">
+                                            {lead.arrivalDate}
+                                        </td>
+                                        <td className="p-3">
+                                            {lead.createdAt}<br />
+                                            {lead.modifiedAt}
+                                        </td>
+                                        {/* <td className="p-3">
+                <div className="flex gap-2">
+                    <Edit size={16} className="cursor-pointer" />
+                    
+                </div>
+            </td> */}
+                                        {/* <td className="p-3">
+                                            <div className="flex gap-2">
+                                                <Edit
+                                                    size={16}
+                                                    className="cursor-pointer"
+                                                    onClick={() => navigate(`/edit/${lead.id}`)}
+                                                />
+                                                <Copy size={16} className="cursor-pointer" />
+                                            </div>
+                                        </td> */}
+                                        <td className="p-3">
+                                            <div className="flex flex-col gap-2">
+                                                <div className="flex gap-2">
+                                                    <Edit
+                                                        size={16}
+                                                        className="cursor-pointer"
+                                                        onClick={() => navigate(`/edit/${lead.id}`)}
+                                                    />
+                                                    <Plus
+                                                        size={16}
+                                                        className="cursor-pointer"
+                                                        onClick={() => navigate('/edit', {
+                                                            state: {
+                                                                customerInfo: {
+                                                                    customerName: lead.name,
+                                                                    mobileNumber: lead.number,
+                                                                    source: lead.source
+                                                                    // Add any other customer fields you want to pass
+                                                                }
+                                                            }
+                                                        })}
+                                                    />
+                                                    <Copy size={16} className="cursor-pointer" />
+                                                </div>
+
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {/* Add message display above table */}
+                        {searchMessage && (
+                            <div className="text-center py-2 text-gray-600">
+                                {searchMessage}
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex justify-center items-center mb-2">
+                        <span className="text-gray-600">
+                            Page {currentPage} of {totalPages} ({totalLeads} total leads)
+                        </span>
+                    </div>
                 </div>
             </div>
-            </div>
-            <footer className="bg-gray-50">
+            {/* <footer className="bg-gray-50">
                 <p className="text-center py-4" style={{ marginTop: '2em', marginBottom: '0' }}>
                     © 2025 OnlyBigCars All Rights Reserved.
                 </p>
-            </footer>
+            </footer> */}
         </Layout>
     );
 };

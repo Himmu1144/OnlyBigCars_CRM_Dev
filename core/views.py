@@ -11,24 +11,25 @@ from rest_framework import status
 
 from django.db import transaction
 from .models import Customer, Lead, Profile, Order, Car
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def home_view(request):
-    # Get 3 most recent leads
-    recent_leads = Lead.objects.select_related('customer', 'profile', 'order').order_by('-created_at')[:4]
-    leads_data = lead_format(recent_leads)
-
-    # Get all users
+     # Get 3 most recent leads
+    page_number = request.GET.get('page', 1)
+    recent_leads = Lead.objects.select_related('customer', 'profile', 'order').order_by('-created_at')
+    
+    pagination_data = paginate_leads(recent_leads, page_number)
     users = User.objects.all().values('id', 'username')
     users_data = list(users)
 
     return Response({
         "message": "Recent Leads",
-        "leads": leads_data,
-        "users": users_data
+        **pagination_data,
+        "users": list(users)
     })
 
 
@@ -36,6 +37,7 @@ def home_view(request):
 @api_view(['GET'])
 def search_leads(request):
     query = request.GET.get('query', '').strip()
+    page_number = request.GET.get('page', 1)
     leads = []
 
     # Check if query is string or number
@@ -48,19 +50,20 @@ def search_leads(request):
             leads = Lead.objects.filter(customer__customer_name__icontains=query)
     else:
         # Search in Order IDs first
-        leads = Lead.objects.filter(order__order_id__icontains=query)
-        
-        # If no results found, search in customer mobile numbers
-        if not leads.exists():
+        if (len(query) <= 10):
             leads = Lead.objects.filter(customer__mobile_number__icontains=query)
+        else:
+            leads = Lead.objects.filter(order__order_id__icontains=query)
+        
+        # # If no results found, search in customer mobile numbers
+        # if not leads.exists():
+        #     leads = Lead.objects.filter(customer__mobile_number__icontains=query)
 
-    leads_data = lead_format(leads)
+    pagination_data = paginate_leads(leads, page_number)
     return Response({
         "message": "Search Results",
-        "leads": leads_data
+        **pagination_data
     })
-
-
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication])
@@ -73,6 +76,8 @@ def edit_form_submit(request):
             user_profile = Profile.objects.get(user=request.user)
             
             # Extract data
+            data = request.data
+            table_data = data['overview']['tableData']
             customer_data = request.data.get('customerInfo')
             cars_data = request.data.get('cars', [])
             location_data = request.data.get('location')
@@ -107,8 +112,12 @@ def edit_form_submit(request):
                 if not saved_car:
                     saved_car = saved_car
 
+             # Generate custom lead ID
+            custom_lead_id = generate_custom_lead_id(customer_data['mobileNumber'])
+
             # Create lead with user's profile
             lead = Lead.objects.create(
+                lead_id=custom_lead_id,
                 profile=user_profile,  # Add the user's profile
                 customer=customer,
                 car=saved_car,
@@ -119,18 +128,22 @@ def edit_form_submit(request):
                 city=location_data['city'],
                 state=location_data['state'],
                 building=location_data['buildingName'],
-                flat_number=location_data['flatNumber'],
+                map_link=location_data['mapLink'],
                 landmark=location_data['landmark'],
                 # Status info
                 lead_status=arrival_data['leadStatus'],
                 arrival_mode=arrival_data['arrivalMode'],
                 disposition=arrival_data['disposition'],
                 arrival_time=arrival_data['dateTime'] if arrival_data['dateTime'] else None,
+                products=table_data,
                 # Workshop info
                 workshop_details=workshop_data,
-                ca_name=workshop_data['ca'],
+                ca_name=basic_data['caName'],
+                cce_name=basic_data['cceName'],
+                ca_comments=basic_data['caComments'],
+                cce_comments=basic_data['cceComments'],
                 # Store other data
-                products=request.data.get('overview', {}).get('tableData', [])
+                # products=table_data
             )
 
             return Response({
@@ -196,6 +209,7 @@ def edit_form_submit(request):
 @permission_classes([IsAuthenticated])
 def filter_leads(request):
     filter_data = request.data
+    page_number = request.data.get('page', 1)
     query = Lead.objects.all()
     
     # User filter
@@ -231,28 +245,181 @@ def filter_leads(request):
     
     # Order by latest first
     leads = query.order_by('-created_at')
-    leads_data = lead_format(leads)
+    pagination_data = paginate_leads(leads, page_number)
     
-    return Response({'leads': leads_data})
+    return Response(pagination_data)
 
+@api_view(['GET'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def get_lead(request, id):
+    # print('bc aavi gayo')
+    try:
+        lead = Lead.objects.get(lead_id=id)
+        lead.is_read = True
+        lead.save()
+        # print('The lead bc -   ', lead)
+        # Use the same lead_format function
+        formatted_lead = lead_format([lead])  # Pass a list to lead_format
+        # print('This is the formatted lead', formatted_lead)
+        return Response(formatted_lead)  # Return the first item from the list
+    except Lead.DoesNotExist:
+        return Response(
+            {"message": "Lead not found"}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+@api_view(['PUT'])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def update_lead(request, id):
+    print('got to put view - ', id)
+    with transaction.atomic():
+        try:
+            lead = Lead.objects.get(lead_id=id)
+            print("Updating lead:", id)  # Debug print
+            print("Request data:", request.data)  # Debug print
+            
+            # Extract data
+            customer_data = request.data.get('customerInfo', {})
+            cars_data = request.data.get('cars', [])
+            location_data = request.data.get('location', {})
+            workshop_data = request.data.get('workshop', {})
+            arrival_data = request.data.get('arrivalStatus', {})
+            basic_data = request.data.get('basicInfo', {})
+            overview_data = request.data.get('overview', {})
+
+            # Update customer
+            if customer_data:
+                customer = lead.customer
+                customer.customer_name = customer_data.get('customerName', customer.customer_name)
+                customer.mobile_number = customer_data.get('mobileNumber', customer.mobile_number)
+                customer.whatsapp_number = customer_data.get('whatsappNumber', customer.whatsapp_number)
+                customer.customer_email = customer_data.get('customerEmail', customer.customer_email)
+                customer.language_barrier = customer_data.get('languageBarrier', customer.language_barrier)
+                customer.save()
+
+            # Update lead fields
+            lead.source = customer_data.get('source', lead.source)
+            lead.lead_type = basic_data.get('carType', lead.lead_type)
+            lead.address = location_data.get('address', lead.address)
+            lead.city = location_data.get('city', lead.city)
+            lead.state = location_data.get('state', lead.state)
+            lead.building = location_data.get('buildingName', lead.building)
+            lead.map_link = location_data.get('mapLink', lead.map_link)
+            lead.landmark = location_data.get('landmark', lead.landmark)
+            lead.lead_status = arrival_data.get('leadStatus', lead.lead_status)
+            lead.arrival_mode = arrival_data.get('arrivalMode', lead.arrival_mode)
+            lead.disposition = arrival_data.get('disposition', lead.disposition)
+            lead.arrival_time = arrival_data.get('dateTime', lead.arrival_time)
+            lead.workshop_details = workshop_data
+            lead.ca_name = workshop_data.get('ca', lead.ca_name)
+            lead.products = overview_data.get('tableData', lead.products)
+            lead.save()
+
+            # Update cars if provided
+            if cars_data:
+                Car.objects.filter(customer=customer).delete()
+                for car_data in cars_data:
+                    Car.objects.create(
+                        customer=customer,
+                        brand=car_data.get('carBrand'),
+                        model=car_data.get('carModel'),
+                        year=car_data.get('year'),
+                        variant=car_data.get('variant'),
+                        reg_no=car_data.get('regNo'),
+                        chasis_no=car_data.get('chasisNo')
+                    )
+
+            # Return updated lead data
+            formatted_lead = lead_format([lead])[0]
+            return Response(formatted_lead, status=status.HTTP_200_OK)
+
+        except Lead.DoesNotExist:
+            return Response(
+                {"message": "Lead not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print("Error updating lead:", str(e))  # Debug print
+            return Response(
+                {"message": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 def lead_format(leads):
     leads_data = [{
         'id': lead.lead_id or 'NA',
         'type': lead.lead_type or 'NA',
-        'location': lead.city or 'NA',
+        'is_read':lead.is_read or False,
+
         'name': lead.customer.customer_name if lead.customer else 'NA',
-        'vehicle': f"{lead.car.brand} {lead.car.model} ({lead.car.year})" if lead.car else 'NA',  # Modified this line
+        'vehicle': 'NA',
         'number': lead.customer.mobile_number if lead.customer else 'NA',
+        'whatsapp_number': lead.customer.whatsapp_number if lead.customer else 'NA',
+        'email': lead.customer.customer_email if lead.customer else 'NA',
         'source': lead.source or 'NA',
+        'language_barrier':lead.customer.language_barrier or False,
+
+        'address': lead.address or 'NA',
+        'city': lead.city or 'NA',
+        'state': lead.state or 'NA',
+        'landmark': lead.landmark or 'NA',
+        'building': lead.building or 'NA',
+        'map_link': lead.map_link or 'NA',
+
+        'lead_status': lead.lead_status or 'NA',
+        'lead_type': lead.lead_type or 'NA',
+        'arrival_mode': lead.arrival_mode or 'NA',
+        'disposition': lead.disposition or 'NA',
+        'arrival_time': lead.arrival_time.strftime("%b %d,%Y,%H:%M") if lead.arrival_time else 'NA',
+        'products': lead.products or 'NA',
+
+        'workshop_details': {
+            'name': lead.workshop_details.get('name') if lead.workshop_details else '',
+            'locality': lead.workshop_details.get('locality') if lead.workshop_details else '',
+            'status': lead.workshop_details.get('status') if lead.workshop_details else '',
+            'mobile': lead.workshop_details.get('mobile') if lead.workshop_details else '',
+            'mechanic': lead.workshop_details.get('mechanic') if lead.workshop_details else '',
+        } if lead.workshop_details else {},
+
         'orderId': lead.order.order_id if lead.order else 'NA',
         'regNumber': 'NA',
         'status': lead.lead_status or 'NA',
-        'cce': lead.profile.user.username if (lead.profile and lead.profile.user) else 'NA',
-        'ca': lead.ca_name or 'NA',
-        'arrivalDate': lead.arrival_time.strftime("%b %d,%Y,%H:%M") if lead.arrival_time else 'NA',
+        'cceName': lead.cce_name or 'NA',
+        'caName': lead.ca_name or 'NA',
+        'cceComments': lead.cce_comments or 'NA',
+        'caComments': lead.ca_comments or 'NA',
+        # 'arrivalDate': lead.arrival_time.strftime("%b %d,%Y,%H:%M") if lead.arrival_time else 'NA',
         'createdAt': lead.created_at.strftime("%b %d,%Y,%H:%M") if lead.created_at else 'NA',
         'modifiedAt': lead.updated_at.strftime("%b %d,%Y,%H:%M") if lead.updated_at else 'NA'
     } for lead in leads]
     return leads_data
 
+def paginate_leads(leads_queryset, page_number, items_per_page=5):
+    """
+    Helper function to paginate leads queryset
+    """
+    paginator = Paginator(leads_queryset, items_per_page)
+    
+    try:
+        paginated_leads = paginator.page(page_number)
+    except PageNotAnInteger:
+        paginated_leads = paginator.page(1)
+    except EmptyPage:
+        paginated_leads = paginator.page(paginator.num_pages)
+    
+    return {
+        'leads': lead_format(paginated_leads),
+        'total_pages': paginator.num_pages,
+        'current_page': paginated_leads.number,
+        'total_leads': paginator.count
+    }
+
+
+def generate_custom_lead_id(customer_number):
+    # Get total leads count
+    total_leads = Lead.objects.count()
+    # Format lead ID
+    lead_id = f"L-{customer_number}-{total_leads + 1}"
+    return lead_id
