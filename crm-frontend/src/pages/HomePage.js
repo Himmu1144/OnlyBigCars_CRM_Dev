@@ -8,6 +8,11 @@ import { Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import './homepage.css';
 
+// In your React app's configuration
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://onlybigcars-crm-dev1-605837710812.asia-south2.run.app'  // Cloud Run URL
+  : 'http://localhost:8000';  // Local development
+
 const HomePage = () => {
     const navigate = useNavigate();
     const { token } = useContext(AuthContext);
@@ -46,7 +51,7 @@ const HomePage = () => {
     const fetchLeads = async () => {
         try {
             setIsLoading(true);
-            const response = await axios.get(`http://localhost:8000/?page=1`, {
+            const response = await axios.get(`${API_BASE_URL}/?page=1`, {
                 headers: {
                     'Authorization': `Token ${token}`
                 }
@@ -69,7 +74,7 @@ const HomePage = () => {
         try {
             setIsLoading(true);
             const nextPage = currentPage + 1;
-            const response = await axios.get(`http://localhost:8000/?page=${nextPage}`, {
+            const response = await axios.get(`${API_BASE_URL}/?page=${nextPage}`, {
                 headers: {
                     'Authorization': `Token ${token}`
                 }
@@ -100,7 +105,7 @@ const HomePage = () => {
         e.preventDefault();
         setSearchMessage('');
         try {
-            const response = await axios.get(`http://localhost:8000/api/leads/search/?query=${searchQuery}&page=1`, {
+            const response = await axios.get(`${API_BASE_URL}/api/leads/search/?query=${searchQuery}&page=1`, {
                 headers: {
                     'Authorization': `Token ${token}`
                 }
@@ -134,7 +139,7 @@ const HomePage = () => {
         setSearchMessage('');
         try {
             const response = await axios.post(
-                'http://localhost:8000/api/leads/filter/',
+                `${API_BASE_URL}/api/leads/filter/`,
                 { ...filterFormData, page: 1 },
                 {
                     headers: {
@@ -170,7 +175,7 @@ const HomePage = () => {
 
     useEffect(() => {
         // Fetch welcome message and users
-        axios.get('http://127.0.0.1:8000/', {
+        axios.get(`${API_BASE_URL}/`, {
             headers: {
                 Authorization: `Token ${token}`
             }

@@ -8,3 +8,8 @@ ENV/
 __pycache__/
 *.py[cod]
 *$py.class
+
+.env
+*.pyc
+__pycache__
+staticfiles
