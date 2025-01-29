@@ -70,6 +70,10 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://onlybigcars-crm-dev1-605837710812.asia-south2.run.app'
+]
+
 ROOT_URLCONF = 'crm_backend.urls'
 
 TEMPLATES = [
